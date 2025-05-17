@@ -18,14 +18,66 @@
 #include <QDateTime>
 #include <QCoreApplication>
 #include <QLabel>
+#include <QStyledItemDelegate>
+
+// 自定义文件系统模型，首列显示文字图标和文件大小
+class TextIconFileSystemModel : public QFileSystemModel {
+public:
+    using QFileSystemModel::QFileSystemModel;
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override {
+        if (role == Qt::DisplayRole && index.column() == 0) {
+            QFileInfo info = QFileSystemModel::fileInfo(index);
+            QString icon;
+            if (info.isDir())
+                icon = QStringLiteral(" 📁 ");
+            else if (info.isExecutable())
+                icon = QStringLiteral(" ⚙️ ");
+            else if (QStringList{"png","jpg","jpeg","bmp","gif"}.contains(info.suffix().toLower()))
+                icon = QStringLiteral(" 🎨 ");
+            else if (QStringList{"mp4","avi","mkv","mov"}.contains(info.suffix().toLower()))
+                icon = QStringLiteral(" 🎬 ");
+            else
+                icon = QStringLiteral(" 📄 ");
+            QString name = QFileSystemModel::data(index, role).toString();
+
+            // 文件大小
+            QString sizeStr;
+            if (info.isDir()) {
+                sizeStr = "-";
+            } else {
+                qint64 size = info.size();
+                if (size < 1024)
+                    sizeStr = QString::number(size) + " B";
+                else if (size < 1024 * 1024)
+                    sizeStr = QString::number(size / 1024.0, 'f', 1) + " KB";
+                else if (size < 1024 * 1024 * 1024)
+                    sizeStr = QString::number(size / 1024.0 / 1024.0, 'f', 1) + " MB";
+                else
+                    sizeStr = QString::number(size / 1024.0 / 1024.0 / 1024.0, 'f', 1) + " GB";
+            }
+            // 右对齐大小，使用空格填充
+            int totalWidth = 36; // 总宽度（可根据字体调整）
+            QString display = icon + name;
+            int pad = totalWidth - display.length() - sizeStr.length();
+            if (pad < 2) pad = 2;
+            display += QString(pad, QChar(' ')) + sizeStr;
+            return display;
+        }
+        // 不返回 DecorationRole，避免原生图标
+        if (role == Qt::DecorationRole && index.column() == 0) {
+            return QVariant();
+        }
+        return QFileSystemModel::data(index, role);
+    }
+};
 
 FileManagerWindow::FileManagerWindow(QWidget *parent)
     : QWidget(parent, Qt::Tool | Qt::FramelessWindowHint)
 {
     setAttribute(Qt::WA_DeleteOnClose, false);
 
-    // 创建文件系统模型
-    model = new QFileSystemModel(this);
+    // 创建自定义文件系统模型
+    model = new TextIconFileSystemModel(this);
     model->setRootPath(rootPath);
     model->setFilter(QDir::AllEntries | QDir::NoDotAndDotDot);
 
@@ -40,8 +92,12 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
     tree->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     tree->setFocusPolicy(Qt::StrongFocus);
     tree->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-    tree->setIconSize(QSize(14, 14));  // 增大图标
     tree->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel); // 滚动更细腻
+
+    // 只显示首列
+    for (int i = 1; i < model->columnCount(); ++i) {
+        tree->setColumnHidden(i, true);
+    }
 
     // 禁用展开/折叠功能
     tree->setItemsExpandable(false);
@@ -96,7 +152,7 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
         }
         QTreeView::item {
             padding: 12px 8px;
-            height: 14px;
+            height: 9px;
             margin: 2px 0;
         }
         QTreeView::item:hover {
