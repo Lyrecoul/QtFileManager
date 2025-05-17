@@ -191,8 +191,17 @@ void ImageViewer::onZoomIn()
 
 void ImageViewer::onZoomOut()
 {
+    // 计算最小缩放比例，保证图片完整显示
+    double minScale = 0.2;
+    if (!rotatedPixmap.isNull()) {
+        double scaleW = double(width()) / rotatedPixmap.width();
+        double scaleH = double(height()) / rotatedPixmap.height();
+        minScale = qMin(scaleW, scaleH);
+        minScale = qMin(minScale, 1.0); // 不允许初始就放大
+        minScale = qMax(minScale, 0.05); // 防止极小
+    }
     scaleFactor /= 1.25;
-    if (scaleFactor < 0.2) scaleFactor = 0.2;
+    if (scaleFactor < minScale) scaleFactor = minScale;
     update();
     showZoomButtons();
 }
@@ -224,4 +233,14 @@ void ImageViewer::rotateImage()
     rotatedPixmap = originalPixmap.transformed(trans, Qt::SmoothTransformation);
     // 旋转后重置偏移
     offset = QPointF(0, 0);
+
+    // 旋转后自动调整缩放比例，保证图片完整显示
+    if (!rotatedPixmap.isNull()) {
+        double scaleW = double(width()) / rotatedPixmap.width();
+        double scaleH = double(height()) / rotatedPixmap.height();
+        double minScale = qMin(scaleW, scaleH);
+        minScale = qMin(minScale, 1.0);
+        minScale = qMax(minScale, 0.05);
+        if (scaleFactor < minScale) scaleFactor = minScale;
+    }
 }
