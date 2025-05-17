@@ -5,15 +5,13 @@
 #include <QFileSystemModel>
 #include <QTreeView>
 #include <QPushButton>
+#include <QLabel>
 
 class FileManagerWindow : public QWidget {
     Q_OBJECT
 
 public:
     explicit FileManagerWindow(QWidget *parent = nullptr);
-
-protected:
-    void closeEvent(QCloseEvent *event) override;
 
 private slots:
     void goBack();
@@ -23,6 +21,7 @@ private:
     QFileSystemModel *model;
     QTreeView *tree;
     QPushButton *backButton;
+    QLabel *pathLabel; // 新增：路径标签
 
     const QString rootPath = "/userdisk/Music";  // 可根据实际需求修改根路径
 };

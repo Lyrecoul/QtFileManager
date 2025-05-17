@@ -8,66 +8,87 @@
 #include <QFileInfo>
 #include <QApplication>
 #include <QScreen>
+#include <QPainter>
+#include <QMouseEvent>
+#include <QTimer>
+#include <QStyleOption>
 #include <QGraphicsOpacityEffect>
 
 ImageViewer::ImageViewer(const QString &path, QWidget *parent)
     : QWidget(parent), currentPath(path)
 {
-    // 窗口设置
     setWindowTitle(QFileInfo(path).fileName());
-    setWindowFlags(Qt::FramelessWindowHint);
+    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
     setAttribute(Qt::WA_TranslucentBackground);
+    setAttribute(Qt::WA_DeleteOnClose);
 
-    // 图片标签
-    imageLabel = new QLabel(this);
-    imageLabel->setAlignment(Qt::AlignCenter);
-    imageLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    imageLabel->setScaledContents(false); // 重要：禁用自动缩放
+    // 强制设置为全屏大小
+    QScreen *screen = QGuiApplication::primaryScreen();
+    if (screen) {
+        QRect screenRect = screen->geometry();
+        setGeometry(screenRect);
+        resize(screenRect.size());
+    }
 
-    // 关闭按钮
-    closeButton = new QPushButton(this);
-    closeButton->setFixedSize(30, 30);
-    closeButton->setIcon(QIcon(":/icons/close.png"));
-    closeButton->setIconSize(QSize(20, 20));
-    closeButton->setStyleSheet(
+    // 加载图片
+    originalPixmap = QPixmap(currentPath);
+    rotatedPixmap = originalPixmap;
+
+    // 缩放按钮
+    zoomInButton = new QPushButton("＋", this);
+    zoomOutButton = new QPushButton("－", this);
+    zoomInButton->setVisible(false);
+    zoomOutButton->setVisible(false);
+
+    QString btnStyle =
         "QPushButton {"
-        "   background: rgba(0, 0, 0, 50);"
-        "   border: 1px solid rgba(255, 255, 255, 100);"
-        "   border-radius: 15px;"
+        "   color: white;"
+        "   font-size: 22px;"
+        "   background: rgba(0,0,0,120);"
+        "   border-radius: 16px;"
+        "   padding: 4px 12px;"
+        "   opacity: 0.7;"
         "}"
         "QPushButton:hover {"
-        "   background: rgba(0, 0, 0, 70);"
-        "}");
+        "   background: rgba(0,0,0,180);"
+        "   opacity: 1.0;"
+        "}";
+    zoomInButton->setStyleSheet(btnStyle);
+    zoomOutButton->setStyleSheet(btnStyle);
 
-    QGraphicsOpacityEffect *opacityEffect = new QGraphicsOpacityEffect(this);
-    opacityEffect->setOpacity(0.5);
-    closeButton->setGraphicsEffect(opacityEffect);
+    zoomInButton->setFixedSize(40, 32);
+    zoomOutButton->setFixedSize(40, 32);
 
-    // 布局
-    QHBoxLayout *buttonLayout = new QHBoxLayout();
-    buttonLayout->addStretch();
-    buttonLayout->addWidget(closeButton);
-    buttonLayout->setContentsMargins(0, 10, 10, 0);
+    connect(zoomInButton, &QPushButton::clicked, this, &ImageViewer::onZoomIn);
+    connect(zoomOutButton, &QPushButton::clicked, this, &ImageViewer::onZoomOut);
 
-    QVBoxLayout *mainLayout = new QVBoxLayout(this);
-    mainLayout->addWidget(imageLabel);
-    mainLayout->addLayout(buttonLayout);
-    mainLayout->setContentsMargins(0, 0, 0, 0);
-    mainLayout->setSpacing(0);
+    connect(&zoomButtonHideTimer, &QTimer::timeout, this, &ImageViewer::hideZoomButtons);
 
-    connect(closeButton, &QPushButton::clicked, this, &QWidget::close);
+    // 长按检测
+    longPressTimer.setSingleShot(true);
+    connect(&longPressTimer, &QTimer::timeout, [this]() {
+        longPressDetected = true;
+        close();
+    });
 
-    // 初始加载图片但不立即调整大小
+    // 初始显示
     updateImageDisplay();
 }
 
 void ImageViewer::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
-    if (firstShow) {
-        adjustWindowSize();
-        firstShow = false;
+    // 强制全屏并铺满
+    if (!isFullScreen())
+        showFullScreen();
+    // 再次确保窗口大小与屏幕一致
+    QScreen *screen = QGuiApplication::primaryScreen();
+    if (screen) {
+        QRect screenRect = screen->geometry();
+        setGeometry(screenRect);
+        resize(screenRect.size());
     }
+    updateImageDisplay();
 }
 
 void ImageViewer::resizeEvent(QResizeEvent *event)
@@ -76,42 +97,131 @@ void ImageViewer::resizeEvent(QResizeEvent *event)
     updateImageDisplay();
 }
 
-void ImageViewer::adjustWindowSize()
+void ImageViewer::paintEvent(QPaintEvent *event)
 {
-    QPixmap pixmap(currentPath);
-    if (!pixmap.isNull()) {
-        QSize screenSize = qApp->primaryScreen()->availableSize();
-        QSize imageSize = pixmap.size();
+    Q_UNUSED(event);
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
 
-        // 计算适合屏幕的窗口大小
-        double scale = qMin(
-            (double)screenSize.width() * 0.9 / imageSize.width(),
-            (double)screenSize.height() * 0.9 / imageSize.height()
-            );
-
-        QSize windowSize = imageSize * scale;
-        resize(windowSize);
-
-        // 居中窗口
-        move(
-            (screenSize.width() - windowSize.width()) / 2,
-            (screenSize.height() - windowSize.height()) / 2
-            );
+    if (rotatedPixmap.isNull()) {
+        painter.fillRect(rect(), Qt::black);
+        painter.setPen(Qt::white);
+        painter.drawText(rect(), Qt::AlignCenter, "无法加载图片");
+        return;
     }
+
+    QSizeF scaledSize = rotatedPixmap.size() * scaleFactor;
+    QPointF topLeft = QPointF(width() / 2.0, height() / 2.0) - QPointF(scaledSize.width() / 2.0, scaledSize.height() / 2.0) + offset;
+
+    // 限制偏移不超出图片边界
+    QSizeF viewSize(width(), height());
+    QSizeF imgSize = scaledSize;
+    QPointF minOffset(
+        qMin(0.0, (viewSize.width() - imgSize.width()) / 2.0),
+        qMin(0.0, (viewSize.height() - imgSize.height()) / 2.0)
+    );
+    QPointF maxOffset(
+        qMax(0.0, (imgSize.width() - viewSize.width()) / 2.0),
+        qMax(0.0, (imgSize.height() - viewSize.height()) / 2.0)
+    );
+    offset.setX(qBound(minOffset.x(), offset.x(), maxOffset.x()));
+    offset.setY(qBound(minOffset.y(), offset.y(), maxOffset.y()));
+
+    topLeft = QPointF(width() / 2.0, height() / 2.0) - QPointF(scaledSize.width() / 2.0, scaledSize.height() / 2.0) + offset;
+
+    painter.fillRect(rect(), Qt::black);
+    painter.drawPixmap(QRectF(topLeft, scaledSize), rotatedPixmap, QRectF(0, 0, rotatedPixmap.width(), rotatedPixmap.height()));
+
+    // 缩放按钮位置
+    int margin = 12;
+    zoomInButton->move(width() / 2 - zoomInButton->width() - margin / 2, margin);
+    zoomOutButton->move(width() / 2 + margin / 2, margin);
+}
+
+void ImageViewer::mousePressEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton) {
+        lastMousePos = event->pos();
+        dragging = true;
+        longPressDetected = false;
+        longPressTimer.start(600); // 600ms长按关闭
+    }
+}
+
+void ImageViewer::mouseMoveEvent(QMouseEvent *event)
+{
+    if (dragging) {
+        QPointF delta = event->pos() - lastMousePos;
+        offset += delta;
+        lastMousePos = event->pos();
+        update();
+        if (longPressTimer.isActive())
+            longPressTimer.stop(); // 移动则不判定为长按
+    }
+}
+
+void ImageViewer::mouseReleaseEvent(QMouseEvent *event)
+{
+    if (dragging) {
+        dragging = false;
+        if (longPressTimer.isActive())
+            longPressTimer.stop();
+        if (!longPressDetected) {
+            // 普通点击，显示缩放按钮
+            showZoomButtons();
+        }
+    }
+}
+
+void ImageViewer::mouseDoubleClickEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton) {
+        rotateImage();
+        updateImageDisplay();
+    }
+}
+
+void ImageViewer::onZoomIn()
+{
+    scaleFactor *= 1.25;
+    if (scaleFactor > 5.0) scaleFactor = 5.0;
+    update();
+    showZoomButtons();
+}
+
+void ImageViewer::onZoomOut()
+{
+    scaleFactor /= 1.25;
+    if (scaleFactor < 0.2) scaleFactor = 0.2;
+    update();
+    showZoomButtons();
+}
+
+void ImageViewer::showZoomButtons()
+{
+    zoomInButton->setVisible(true);
+    zoomOutButton->setVisible(true);
+    zoomButtonHideTimer.start(1800); // 1.8秒后自动隐藏
+}
+
+void ImageViewer::hideZoomButtons()
+{
+    zoomInButton->setVisible(false);
+    zoomOutButton->setVisible(false);
 }
 
 void ImageViewer::updateImageDisplay()
 {
-    QPixmap pixmap(currentPath);
-    if (pixmap.isNull()) {
-        imageLabel->setText("无法加载图片");
-    } else {
-        // 保持宽高比缩放图片以适应标签
-        QPixmap scaled = pixmap.scaled(
-            imageLabel->size(),
-            Qt::KeepAspectRatioByExpanding,
-            Qt::SmoothTransformation
-            );
-        imageLabel->setPixmap(scaled);
-    }
+    // 缩放和旋转已在paintEvent处理
+    update();
+}
+
+void ImageViewer::rotateImage()
+{
+    rotationAngle = (rotationAngle + 90) % 360;
+    QTransform trans;
+    trans.rotate(rotationAngle);
+    rotatedPixmap = originalPixmap.transformed(trans, Qt::SmoothTransformation);
+    // 旋转后重置偏移
+    offset = QPointF(0, 0);
 }
