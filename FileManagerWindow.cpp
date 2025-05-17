@@ -43,6 +43,10 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
     tree->setIconSize(QSize(14, 14));  // 增大图标
     tree->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel); // 滚动更细腻
 
+    // 禁用展开/折叠功能
+    tree->setItemsExpandable(false);
+    tree->setRootIsDecorated(false); // 不显示展开箭头
+
     // 启用更平滑的触摸滑动
     QScroller *scroller = QScroller::scroller(tree->viewport());
     QScrollerProperties sp = scroller->scrollerProperties();
@@ -83,6 +87,12 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
             border: none;
             outline: none;
             font-family: "Microsoft YaHei", "微软雅黑", "Arial", sans-serif;
+        }
+        QTreeView::branch {
+            background: none;
+            border: none;
+            image: none;
+            width: 0px;
         }
         QTreeView::item {
             padding: 12px 8px;
