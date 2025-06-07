@@ -10,5 +10,7 @@ HEADERS += \
     ImageViewer.h
 
 CONFIG += c++11
+LIBS += -L/home/lyrecoul/PenDevelopment/lib \
+        -ldrm -lpcre -lgbm -lwayland-client -lwayland-server -lffi
 
 RESOURCES += resources.qrc
