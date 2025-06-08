@@ -31,7 +31,7 @@ public:
             if (info.isDir())
                 icon = QStringLiteral(" 📁 ");
             else if (info.isExecutable())
-                icon = QStringLiteral(" ⚙️ ");
+                icon = QStringLiteral(" 🔧 ");
             else if (QStringList{"png","jpg","jpeg","bmp","gif"}.contains(info.suffix().toLower()))
                 icon = QStringLiteral(" 🎨 ");
             else if (QStringList{"mp4","avi","mkv","mov"}.contains(info.suffix().toLower()))
@@ -76,6 +76,9 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
 {
     setAttribute(Qt::WA_DeleteOnClose, false);
 
+    // 固定窗口大小，适配 320x170
+    setFixedSize(320, 170);
+
     // 创建自定义文件系统模型
     model = new TextIconFileSystemModel(this);
     model->setRootPath(rootPath);
@@ -92,7 +95,7 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
     tree->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     tree->setFocusPolicy(Qt::StrongFocus);
     tree->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-    tree->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel); // 滚动更细腻
+    tree->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
 
     // 只显示首列
     for (int i = 1; i < model->columnCount(); ++i) {
@@ -101,7 +104,7 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
 
     // 禁用展开/折叠功能
     tree->setItemsExpandable(false);
-    tree->setRootIsDecorated(false); // 不显示展开箭头
+    tree->setRootIsDecorated(false);
 
     // 启用更平滑的触摸滑动
     QScroller *scroller = QScroller::scroller(tree->viewport());
@@ -121,73 +124,71 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
     sp.setScrollMetric(QScrollerProperties::SnapTime, 0.01); // 吸附动画极快
 
     scroller->setScrollerProperties(sp);
-    scroller->grabGesture(tree->viewport(), QScroller::TouchGesture); // 支持触摸滑动
+    scroller->grabGesture(tree->viewport(), QScroller::TouchGesture);
     scroller->grabGesture(tree->viewport(), QScroller::LeftMouseButtonGesture);
 
-    // 长按支持 (右键菜单备用)
     tree->setContextMenuPolicy(Qt::CustomContextMenu);
     tree->viewport()->setAttribute(Qt::WA_AcceptTouchEvents);
 
-    // 更完善的暗黑风格样式 + 微软雅黑字体
+    // One Dark 风格样式，适合小屏
     setStyleSheet(R"(
         QWidget {
-            background-color: #121212;
-            color: #f0f0f0;
-            font-size: 14px;
+            background-color: #282c34;
+            color: #abb2bf;
+            font-size: 12px;
             font-family: "Microsoft YaHei", "微软雅黑", "Arial", sans-serif;
         }
         QTreeView {
-            background-color: #1e1e1e;
-            alternate-background-color: #2a2a2a;
-            color: #e0e0e0;
+            background-color: #21252b;
+            alternate-background-color: #23252b;
+            color: #abb2bf;
             border: none;
             outline: none;
+            font-size: 12px;
             font-family: "Microsoft YaHei", "微软雅黑", "Arial", sans-serif;
         }
-        QTreeView::branch {
-            background: none;
-            border: none;
-            image: none;
-            width: 0px;
-        }
         QTreeView::item {
-            padding: 12px 8px;
-            height: 9px;
-            margin: 2px 0;
+            padding: 4px 4px;
+            height: 16px;
+            margin: 1px 0;
+            border-radius: 4px;
         }
         QTreeView::item:hover {
-            background-color: #2a2a2a;
+            background-color: #3e4451;
         }
         QTreeView::item:selected {
-            background-color: #555555;
-            color: #ffffff;
+            background-color: #61afef;
+            color: #282c34;
         }
         QPushButton {
             background-color: transparent;
             border: none;
-            padding: 4px;
+            padding: 2px;
+            font-size: 12px;
+            color: #abb2bf;
             font-family: "Microsoft YaHei", "微软雅黑", "Arial", sans-serif;
         }
         QPushButton:hover {
-            background-color: #333333;
+            background-color: #3e4451;
             border-radius: 4px;
         }
         QLabel {
+            font-size: 11px;
+            color: #5c6370;
             font-family: "Microsoft YaHei", "微软雅黑", "Arial", sans-serif;
         }
-        /* 自定义滚动条样式 */
         QScrollBar:vertical {
-            background: #1e1e1e;
-            width: 10px;
+            background: #21252b;
+            width: 8px;
             margin: 0px 0px 0px 0px;
         }
         QScrollBar::handle:vertical {
-            background: #555555;
-            min-height: 20px;
-            border-radius: 5px;
+            background: #3e4451;
+            min-height: 16px;
+            border-radius: 4px;
         }
         QScrollBar::handle:vertical:hover {
-            background: #777777;
+            background: #61afef;
         }
         QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
             background: none;
@@ -198,45 +199,45 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
         }
     )");
 
-    // 创建按钮
+    // 按钮尺寸适配小屏
     backButton = new QPushButton(this);
     backButton->setIcon(QIcon(":/icons/back.png"));
-    backButton->setIconSize(QSize(20, 20));
-    backButton->setFixedSize(32, 32);
+    backButton->setIconSize(QSize(16, 16));
+    backButton->setFixedSize(24, 24);
     backButton->setFlat(true);
 
     QPushButton *closeButton = new QPushButton(this);
     closeButton->setIcon(QIcon(":/icons/close.png"));
-    closeButton->setIconSize(QSize(20, 20));
-    closeButton->setFixedSize(32, 32);
+    closeButton->setIconSize(QSize(16, 16));
+    closeButton->setFixedSize(24, 24);
     closeButton->setFlat(true);
     closeButton->setToolTip("隐藏");
 
     // 路径标签
     pathLabel = new QLabel(this);
     pathLabel->setText(rootPath);
-    pathLabel->setStyleSheet("color: #bbbbbb; font-size: 13px; padding: 0 8px;");
+    pathLabel->setStyleSheet("color: #b0bec5; font-size: 11px; padding: 0 4px;");
     pathLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    pathLabel->setMaximumWidth(320); // 限制最大宽度
-    pathLabel->setMinimumWidth(40);
+    pathLabel->setMaximumWidth(180);
+    pathLabel->setMinimumWidth(20);
     pathLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     pathLabel->setAlignment(Qt::AlignVCenter | Qt::AlignLeft);
     pathLabel->setWordWrap(false);
 
-    // 修改后的布局
+    // 紧凑布局
     QHBoxLayout *buttonLayout = new QHBoxLayout();
-    buttonLayout->addWidget(backButton);      // 后退按钮靠左
-    buttonLayout->addWidget(pathLabel);       // 路径标签在中间
-    buttonLayout->addStretch();               // 添加弹性空间
-    buttonLayout->addWidget(closeButton);     // 关闭按钮靠右
-    buttonLayout->setSpacing(4);
-    buttonLayout->setContentsMargins(6, 6, 6, 6);
+    buttonLayout->addWidget(backButton);
+    buttonLayout->addWidget(pathLabel);
+    buttonLayout->addStretch();
+    buttonLayout->addWidget(closeButton);
+    buttonLayout->setSpacing(2);
+    buttonLayout->setContentsMargins(2, 2, 2, 2);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->addLayout(buttonLayout);
     mainLayout->addWidget(tree);
-    mainLayout->setSpacing(0);
-    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setSpacing(2);
+    mainLayout->setContentsMargins(2, 2, 2, 2);
     setLayout(mainLayout);
 
     // 连接信号
@@ -286,13 +287,11 @@ void FileManagerWindow::onFileClicked(const QModelIndex &index)
     if (mime.startsWith("image/")) {
         auto *viewer = new ImageViewer(path, this);
         viewer->showFullScreen();
-    } else if (mime.startsWith("video/")) {
-        // 获取程序所在目录并启动 Video 程序
-        QString program = QCoreApplication::applicationDirPath() + "/ffmpeg/Video";  // 获取当前程序路径，并加上 video 程序名
+    } else if (mime.startsWith("video/") || mime.startsWith("audio/")) {
+        // 视频和音频都交由 VideoPlayer 处理
+        QString program = QCoreApplication::applicationDirPath() + "/VideoPlayer";
         QStringList arguments;
-        arguments << path;  // 传递视频文件路径作为参数
-
-        // 启动视频程序
+        arguments << path;
         QProcess::startDetached(program, arguments);
     } else if (fileInfo.isExecutable()) {
         QProcess::startDetached(path, QStringList());
