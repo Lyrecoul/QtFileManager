@@ -202,42 +202,43 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
     // 按钮尺寸适配小屏
     backButton = new QPushButton(this);
     backButton->setIcon(QIcon(":/icons/back.png"));
-    backButton->setIconSize(QSize(16, 16));
-    backButton->setFixedSize(24, 24);
+    backButton->setIconSize(QSize(18, 18)); // 稍大
+    backButton->setFixedSize(28, 28);       // 稍大
     backButton->setFlat(true);
 
     QPushButton *closeButton = new QPushButton(this);
     closeButton->setIcon(QIcon(":/icons/close.png"));
-    closeButton->setIconSize(QSize(16, 16));
-    closeButton->setFixedSize(24, 24);
+    closeButton->setIconSize(QSize(18, 18)); // 稍大
+    closeButton->setFixedSize(28, 28);       // 稍大
     closeButton->setFlat(true);
     closeButton->setToolTip("隐藏");
 
     // 路径标签
     pathLabel = new QLabel(this);
     pathLabel->setText(rootPath);
-    pathLabel->setStyleSheet("color: #b0bec5; font-size: 11px; padding: 0 4px;");
+    pathLabel->setStyleSheet("color: #b0bec5; font-size: 11px; padding: 0 8px;"); // padding略增
     pathLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    pathLabel->setMaximumWidth(180);
+    pathLabel->setMaximumWidth(220); // 最大宽度增加
     pathLabel->setMinimumWidth(20);
     pathLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     pathLabel->setAlignment(Qt::AlignVCenter | Qt::AlignLeft);
     pathLabel->setWordWrap(false);
 
-    // 紧凑布局
+    // 更宽松的布局
     QHBoxLayout *buttonLayout = new QHBoxLayout();
     buttonLayout->addWidget(backButton);
+    buttonLayout->addSpacing(8); // 按钮与路径标签间距
     buttonLayout->addWidget(pathLabel);
     buttonLayout->addStretch();
     buttonLayout->addWidget(closeButton);
-    buttonLayout->setSpacing(2);
-    buttonLayout->setContentsMargins(2, 2, 2, 2);
+    buttonLayout->setSpacing(8); // 按钮之间间距
+    buttonLayout->setContentsMargins(8, 6, 8, 6); // 边距加大
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->addLayout(buttonLayout);
     mainLayout->addWidget(tree);
-    mainLayout->setSpacing(2);
-    mainLayout->setContentsMargins(2, 2, 2, 2);
+    mainLayout->setSpacing(6); // 主体间距加大
+    mainLayout->setContentsMargins(8, 6, 8, 6); // 主体边距加大
     setLayout(mainLayout);
 
     // 连接信号
