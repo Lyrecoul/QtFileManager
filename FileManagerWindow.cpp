@@ -212,14 +212,14 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
     // 按钮尺寸适配小屏
     backButton = new QPushButton(this);
     backButton->setIcon(QIcon(":/icons/back.png"));
-    backButton->setIconSize(QSize(18, 18)); // 稍大
-    backButton->setFixedSize(28, 28);       // 稍大
+    backButton->setIconSize(QSize(20, 20)); // 稍大
+    backButton->setFixedSize(30, 30);       // 稍大
     backButton->setFlat(true);
 
     QPushButton *closeButton = new QPushButton(this);
     closeButton->setIcon(QIcon(":/icons/close.png"));
-    closeButton->setIconSize(QSize(18, 18)); // 稍大
-    closeButton->setFixedSize(28, 28);       // 稍大
+    closeButton->setIconSize(QSize(20, 20)); // 稍大
+    closeButton->setFixedSize(30, 30);       // 稍大
     closeButton->setFlat(true);
     closeButton->setToolTip("隐藏");
 
@@ -242,13 +242,13 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
     buttonLayout->addStretch();
     buttonLayout->addWidget(closeButton);
     buttonLayout->setSpacing(8); // 按钮之间间距
-    buttonLayout->setContentsMargins(8, 6, 8, 6); // 边距加大
+    buttonLayout->setContentsMargins(6, 3, 6, 3); // 边距加大
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->addLayout(buttonLayout);
     mainLayout->addWidget(tree);
     mainLayout->setSpacing(6); // 主体间距加大
-    mainLayout->setContentsMargins(8, 6, 8, 6); // 主体边距加大
+    mainLayout->setContentsMargins(0, 2, 0, 2); // 主体边距加大
     setLayout(mainLayout);
 
     // 连接信号
