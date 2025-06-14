@@ -71,6 +71,16 @@ public:
     }
 };
 
+namespace {
+    QString formatDisplayPath(const QString &path) {
+        QString result = path;
+        if (result.startsWith("/userdisk/Music")) {
+            result.replace(0, QString("/userdisk/Music").length(), QStringLiteral("存储"));
+        }
+        return result;
+    }
+}
+
 FileManagerWindow::FileManagerWindow(QWidget *parent)
     : QWidget(parent, Qt::Tool | Qt::FramelessWindowHint)
 {
@@ -215,7 +225,7 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
 
     // 路径标签
     pathLabel = new QLabel(this);
-    pathLabel->setText(rootPath);
+    pathLabel->setText(formatDisplayPath(rootPath));
     pathLabel->setStyleSheet("color: #b0bec5; font-size: 11px; padding: 0 8px;"); // padding略增
     pathLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     pathLabel->setMaximumWidth(220); // 最大宽度增加
@@ -254,8 +264,10 @@ void FileManagerWindow::goBack()
     QString parentPath = QFileInfo(currentPath).dir().absolutePath();
     if (parentPath.startsWith(rootPath) && parentPath != currentPath) {
         tree->setRootIndex(model->index(parentPath));
-        pathLabel->setText(QFileInfo(parentPath).absoluteFilePath());
-        pathLabel->setToolTip(parentPath); // 鼠标悬停显示完整路径
+        QString displayParentPath = QFileInfo(parentPath).absoluteFilePath();
+        displayParentPath = formatDisplayPath(displayParentPath);
+        pathLabel->setText(displayParentPath);
+        pathLabel->setToolTip(displayParentPath); // 鼠标悬停显示完整路径
     }
 }
 
@@ -276,8 +288,10 @@ void FileManagerWindow::onFileClicked(const QModelIndex &index)
     if (fileInfo.isDir()) {
         if (path.startsWith(rootPath)) {
             tree->setRootIndex(model->index(path));
-            pathLabel->setText(QFileInfo(path).absoluteFilePath());
-            pathLabel->setToolTip(path); // 鼠标悬停显示完整路径
+            QString displayPath = QFileInfo(path).absoluteFilePath();
+            displayPath = formatDisplayPath(displayPath);
+            pathLabel->setText(displayPath);
+            pathLabel->setToolTip(displayPath); // 鼠标悬停显示完整路径
         }
         return;
     }
