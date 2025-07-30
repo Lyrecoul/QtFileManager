@@ -7,7 +7,8 @@ SOURCES += \
 
 HEADERS += \
     FileManagerWindow.h \
-    ImageViewer.h
+    ImageViewer.h \
+    MyListWidget.h
 
 CONFIG += c++11
 LIBS += -L/home/lyrecoul/PenDevelopment/lib \

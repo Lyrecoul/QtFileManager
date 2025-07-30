@@ -1,365 +1,435 @@
+// FileManagerWindow.cpp
 #include "FileManagerWindow.h"
+#include "FileItemDelegate.h"
 #include "ImageViewer.h"
-#include "qglobal.h"
+#include "MyListWidget.h"
+#include "qscrollbar.h"
 
 #include <QCoreApplication>
-#include <QDateTime>
-#include <QDebug>
-#include <QEasingCurve>
-#include <QFileInfo>
+#include <QDir>
+#include <QFileIconProvider>
 #include <QHBoxLayout>
-#include <QHeaderView>
 #include <QIcon>
 #include <QLabel>
 #include <QMimeDatabase>
 #include <QProcess>
-#include <QScrollBar>
+#include <QPushButton>
+#include <QScrollArea>
 #include <QScroller>
 #include <QScrollerProperties>
-#include <QSizePolicy>
-#include <QStyledItemDelegate>
+#include <QTimer>
+#include <QToolButton>
 #include <QVBoxLayout>
 
-// 自定义文件系统模型，首列显示文字图标和文件大小
-class TextIconFileSystemModel : public QFileSystemModel {
-public:
-  using QFileSystemModel::QFileSystemModel;
-  QVariant data(const QModelIndex &index,
-                int role = Qt::DisplayRole) const override {
-    if (role == Qt::DisplayRole && index.column() == 0) {
-      QFileInfo info = QFileSystemModel::fileInfo(index);
-      QString icon;
-      if (info.isDir())
-        icon = QStringLiteral(" 📁 ");
-      else if (info.isExecutable())
-        icon = QStringLiteral(" 🔧 ");
-      else if (QStringList{"png", "jpg", "jpeg", "bmp", "gif"}.contains(
-                   info.suffix().toLower()))
-        icon = QStringLiteral(" 🎨 ");
-      else if (QStringList{"mp4", "avi", "mkv", "mov"}.contains(
-                   info.suffix().toLower()))
-        icon = QStringLiteral(" 🎬 ");
-      else
-        icon = QStringLiteral(" 📄 ");
-      QString name = QFileSystemModel::data(index, role).toString();
-
-      // 文件大小
-      QString sizeStr;
-      if (info.isDir()) {
-        sizeStr = "-";
-      } else {
-        qint64 size = info.size();
-        if (size < 1024)
-          sizeStr = QString::number(size) + " B";
-        else if (size < 1024 * 1024)
-          sizeStr = QString::number(size / 1024.0, 'f', 1) + " KB";
-        else if (size < 1024 * 1024 * 1024)
-          sizeStr = QString::number(size / 1024.0 / 1024.0, 'f', 1) + " MB";
-        else
-          sizeStr =
-              QString::number(size / 1024.0 / 1024.0 / 1024.0, 'f', 1) + " GB";
-      }
-      // 右对齐大小，使用空格填充
-      int totalWidth = 36; // 总宽度（可根据字体调整）
-      QString display = icon + name;
-      int pad = totalWidth - display.length() - sizeStr.length();
-      if (pad < 2)
-        pad = 2;
-      display += QString(pad, QChar(' ')) + sizeStr;
-      return display;
-    }
-    // 不返回 DecorationRole，避免原生图标
-    if (role == Qt::DecorationRole && index.column() == 0) {
-      return QVariant();
-    }
-    return QFileSystemModel::data(index, role);
-  }
-};
-
-namespace {
-QString formatDisplayPath(const QString &path) {
-  QString result = path;
-  if (result.startsWith("/userdisk/Music")) {
-    result.replace(0, QString("/userdisk/Music").length(),
-                   QStringLiteral("存储"));
-  }
-  return result;
-}
-} // namespace
-
 FileManagerWindow::FileManagerWindow(QWidget *parent)
-    : QWidget(parent, Qt::Tool | Qt::FramelessWindowHint) {
+    : QWidget(parent, Qt::Tool | Qt::FramelessWindowHint),
+      sortMode(SortMode::Name) {
+
+  setStyleSheet("background-color: #000000ff; color: white;");
+  setWindowTitle("文件管理器");
   setAttribute(Qt::WA_DeleteOnClose, false);
 
-  // 固定窗口大小，适配 320x170
-  setFixedSize(320, 170);
+  QFont font("Microsoft YaHei");
+  this->setFont(font);
 
-  // 创建自定义文件系统模型
-  model = new TextIconFileSystemModel(this);
-  model->setRootPath(rootPath);
-  model->setFilter(QDir::AllEntries | QDir::NoDotAndDotDot);
+  setStyleSheet(R"(
+  QWidget {
+      background-color: #000000;  /* 纯黑 */
+      color: #ffffff;
+      font-size: 13px;
+  }
+  QPushButton {
+      background-color: transparent;
+      border: none;
+      padding: 2px;
+  }
+  QPushButton:hover {
+      background-color: #333333;
+      border-radius: 6px;
+  }
+  QListWidget {
+      background-color: transparent;
+      border: none;
+  }
+)");
 
-  // 创建树视图
-  tree = new QTreeView(this);
-  tree->setModel(model);
-  tree->setRootIndex(model->index(rootPath));
-  tree->setHeaderHidden(true);
-  tree->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-  tree->setEditTriggers(QAbstractItemView::NoEditTriggers);
-  tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-  tree->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-  tree->setFocusPolicy(Qt::StrongFocus);
-  tree->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-  tree->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+  // 左侧按钮栏
+  QVBoxLayout *sideLayout = new QVBoxLayout();
+  sideLayout->setSpacing(6);
+  sideLayout->setContentsMargins(4, 4, 4, 4);
 
-  tree->setStyleSheet(R"(
-    QTreeView::item {
-        padding: 10px 6px;
-        height: 18px;
+  auto createButton = [&](const QString &iconPath) -> QPushButton * {
+    QPushButton *btn = new QPushButton();
+    btn->setIcon(QIcon(iconPath));
+    btn->setIconSize(QSize(20, 20));
+    btn->setFixedSize(32, 32);
+    btn->setStyleSheet(R"(
+      QPushButton {
+        background-color: #242424;
+        border: none;
+        padding: 2px;
+        border-radius: 8px
+      }
+      QPushButton:hover {
+        background-color: #3f3f3f;
+        border-radius: 6px;
+      }
+    )");
+    return btn;
+  };
+
+  QPushButton *btnBack = createButton(":/icons/back.png");
+  connect(btnBack, &QPushButton::clicked, this, &FileManagerWindow::goBack);
+
+  QPushButton *btnSort = createButton(":/icons/sort.png");
+  connect(btnSort, &QPushButton::clicked, this, [this]() {
+    switch (sortMode) {
+    case SortMode::Name:
+      sortMode = SortMode::Time;
+      break;
+    case SortMode::Time:
+      sortMode = SortMode::Type;
+      break;
+    case SortMode::Type:
+      sortMode = SortMode::Name;
+      break;
+    }
+    loadFileItems(currentPath);
+  });
+
+  QPushButton *btnEdit = createButton(":/icons/edit.png");
+  QPushButton *btnDelete = createButton(":/icons/delete.png");
+
+  sideLayout->addWidget(btnBack);
+  sideLayout->addWidget(btnSort);
+  sideLayout->addWidget(btnEdit);
+  sideLayout->addWidget(btnDelete);
+  sideLayout->addStretch();
+
+  QWidget *sideWidget = new QWidget();
+  sideWidget->setLayout(sideLayout);
+  sideWidget->setFixedWidth(40);
+
+  // 面包屑路径导航栏（内嵌widget）
+  breadcrumbBar = new QWidget();
+  breadcrumbLayout = new QHBoxLayout(breadcrumbBar);
+  breadcrumbLayout->setContentsMargins(4, 0, 4, 0);
+  breadcrumbLayout->setSpacing(0);
+
+  breadcrumbBar->setStyleSheet(R"(
+    QToolButton {
+        color: rgba(255, 255, 255, 0.6);
+        background: transparent;
+        border: none;
+        padding: 4px 6px;
+        font-weight: normal;
+    }
+    QToolButton:hover {
+        background-color: #333333;
+        border-radius: 6px;
+    }
+  )");
+
+  // QScrollArea包裹breadcrumbBar，实现横向滑动
+  QScrollArea *breadcrumbScroll = new QScrollArea();
+  breadcrumbScroll->setWidget(breadcrumbBar);
+  breadcrumbScroll->setWidgetResizable(true);
+  breadcrumbScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  breadcrumbScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  breadcrumbScroll->setFixedHeight(32);
+  breadcrumbScroll->setStyleSheet(
+      "QScrollArea { background: transparent; border: none; }");
+
+  // 支持触摸滑动：**绑定scrollArea的viewport**
+  QScroller::grabGesture(breadcrumbScroll->viewport(), QScroller::TouchGesture);
+  QScroller *scroller = QScroller::scroller(breadcrumbScroll->viewport());
+  QScrollerProperties sp = scroller->scrollerProperties();
+  sp.setScrollMetric(QScrollerProperties::HorizontalOvershootPolicy,
+                     QVariant::fromValue<QScrollerProperties::OvershootPolicy>(
+                         QScrollerProperties::OvershootAlwaysOff));
+  scroller->setScrollerProperties(sp);
+
+  // 添加关闭按钮
+  QToolButton *btnClose = new QToolButton(breadcrumbBar);
+  btnClose->setIcon(QIcon(":/icons/close.png")); // 关闭图标路径
+  btnClose->setIconSize(QSize(16, 16));
+  btnClose->setFixedSize(28, 28);
+  btnClose->setStyleSheet(R"(
+  QToolButton {
+    background-color: #242424;  /* 灰色背景 */
+    border-radius: 14px;         /* 圆形 */
+    border: none;
+  }
+  QToolButton:hover {
+    background-color: #888888;
+  }
+)");
+  btnClose->move(breadcrumbBar->width() - btnClose->width() - 4, 2);
+  btnClose->raise();
+
+  // 使用事件过滤器监听breadcrumbBar大小变化，确保关闭按钮始终在右上角
+  breadcrumbBar->installEventFilter(this);
+  btnClose->setProperty("isCloseButton", true); // 标记关闭按钮
+
+  // 关闭按钮点击关闭窗口
+  connect(btnClose, &QToolButton::clicked, this, &FileManagerWindow::close);
+
+  // 文件列表
+  fileList = new MyListWidget();
+  fileList->setSpacing(4);
+  fileList->setItemDelegate(new FileItemDelegate(this));
+  fileList->setUniformItemSizes(true);
+  fileList->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+  QScroller::grabGesture(fileList->viewport(), QScroller::TouchGesture);
+  fileList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  fileList->setMaximumWidth(320 - 40 - 8);
+
+  fileList->setStyleSheet(R"(
+    QListWidget {
+        background-color: transparent;
+        border: none;
+    }
+    QScrollBar:vertical {
+        width: 14px;
+        background: transparent;
+        margin: 3px 0 3px 0;
+        border-radius: 4px;
+    }
+    QScrollBar::handle:vertical {
+        background: #666666;
+        min-height: 20px;
+        border-radius: 4px;
+    }
+    QScrollBar::handle:vertical:hover {
+        background: #888888;
+    }
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+        height: 0px;
+        subcontrol-origin: margin;
+    }
+    QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+        background: none;
     }
 )");
 
-  // 只显示首列
-  for (int i = 1; i < model->columnCount(); ++i) {
-    tree->setColumnHidden(i, true);
-  }
+  connect(fileList, &QListWidget::itemClicked, this,
+          &FileManagerWindow::onItemClicked);
 
-  // 禁用展开/折叠功能
-  tree->setItemsExpandable(false);
-  tree->setRootIsDecorated(false);
+  // 主体区域布局
+  QVBoxLayout *mainAreaLayout = new QVBoxLayout();
+  mainAreaLayout->setContentsMargins(0, 4, 4, 4);
+  mainAreaLayout->setSpacing(4);
 
-  // 启用更平滑的触摸滑动
-  QScroller *scroller = QScroller::scroller(tree->viewport());
-  QScrollerProperties sp = scroller->scrollerProperties();
+  mainAreaLayout->addWidget(breadcrumbScroll);
+  mainAreaLayout->addWidget(fileList);
 
-  // 进一步优化触控参数
-  sp.setScrollMetric(QScrollerProperties::DragStartDistance, 0.0005);
-  sp.setScrollMetric(QScrollerProperties::MousePressEventDelay, 0.05);
-  sp.setScrollMetric(QScrollerProperties::DecelerationFactor, 0.05);
-  sp.setScrollMetric(QScrollerProperties::MaximumVelocity, 2.0);
-  sp.setScrollMetric(QScrollerProperties::OvershootScrollDistanceFactor, 0.5);
-  sp.setScrollMetric(QScrollerProperties::FrameRate,
-                     QScrollerProperties::Fps60);
-  sp.setScrollMetric(QScrollerProperties::SnapPositionRatio, 0.0);
-  sp.setScrollMetric(QScrollerProperties::ScrollingCurve,
-                     QEasingCurve(QEasingCurve::Linear)); // 线性，无缓动
-  sp.setScrollMetric(QScrollerProperties::OvershootDragResistanceFactor,
-                     1.0); // 基本无回弹动画
-  sp.setScrollMetric(QScrollerProperties::OvershootScrollTime,
-                     0.01);                                // 回弹动画极快
-  sp.setScrollMetric(QScrollerProperties::SnapTime, 0.01); // 吸附动画极快
+  QHBoxLayout *mainLayout = new QHBoxLayout(this);
+  mainLayout->setContentsMargins(0, 0, 0, 0);
+  mainLayout->addWidget(sideWidget);
+  mainLayout->addLayout(mainAreaLayout);
 
-  scroller->setScrollerProperties(sp);
-  scroller->grabGesture(tree->viewport(), QScroller::TouchGesture);
-  scroller->grabGesture(tree->viewport(), QScroller::LeftMouseButtonGesture);
-
-  tree->setContextMenuPolicy(Qt::CustomContextMenu);
-  tree->viewport()->setAttribute(Qt::WA_AcceptTouchEvents);
-
-  // One Dark 风格样式，适合小屏
-  setStyleSheet(R"(
-QWidget {
-    background-color: #1e1e1e;
-    color: #c9c9c9;
-    font-size: 13px;
-    font-family: "Microsoft YaHei", "Arial", sans-serif;
-}
-QTreeView {
-    background-color: #1a1a1a;
-    alternate-background-color: #1f1f1f;
-    color: #e0e0e0;
-    border: none;
-    outline: none;
-}
-QTreeView::item {
-    padding: 8px 6px; /* 增大触控区域 */
-    margin: 2px 0;
-    border-radius: 4px;
-}
-QTreeView::item:hover {
-    background-color: #2d2d2d;
-}
-
-/* 垂直滚动条 */
-QScrollBar:vertical {
-    background: #1e1e1e;
-    width: 14px;  /* ← 更粗的滚动条 */
-    margin: 0px;
-}
-
-QScrollBar::handle:vertical {
-    background: #3a3a3a;
-    min-height: 30px;
-    border-radius: 6px;
-}
-
-QScrollBar::handle:vertical:hover {
-    background: #5a5a5a;
-}
-
-/* 去除上下按钮和边框白框 */
-QScrollBar::add-line:vertical,
-QScrollBar::sub-line:vertical {
-    background: none;
-    height: 0px;
-    border: none;
-}
-
-QScrollBar::add-page:vertical,
-QScrollBar::sub-page:vertical {
-    background: none;
-}
-
-/* 水平滚动条（如需要） */
-QScrollBar:horizontal {
-    background: #1e1e1e;
-    height: 14px;  /* ← 更粗 */
-    margin: 0px;
-}
-
-QScrollBar::handle:horizontal {
-    background: #3a3a3a;
-    min-width: 30px;
-    border-radius: 6px;
-}
-
-QScrollBar::handle:horizontal:hover {
-    background: #5a5a5a;
-}
-
-QScrollBar::add-line:horizontal,
-QScrollBar::sub-line:horizontal {
-    background: none;
-    width: 0px;
-    border: none;
-}
-
-QScrollBar::add-page:horizontal,
-QScrollBar::sub-page:horizontal {
-    background: none;
-}
-
-QPushButton {
-    background-color: transparent;
-    border: none;
-    padding: 4px;
-    font-size: 14px;
-    color: #c9c9c9;
-}
-QPushButton:hover {
-    background-color: #2e2e2e;
-    border-radius: 4px;
-}
-QLabel {
-    color: #999999;
-    font-size: 12px;
-}
-
-    )");
-
-  // 按钮尺寸适配小屏
-  backButton = new QPushButton(this);
-  backButton->setIcon(QIcon(":/icons/back.png"));
-  backButton->setIconSize(QSize(20, 20)); // 稍大
-  backButton->setFixedSize(40, 40);       // 稍大
-  backButton->setFlat(true);
-
-  QPushButton *closeButton = new QPushButton(this);
-  closeButton->setIcon(QIcon(":/icons/close.png"));
-  closeButton->setIconSize(QSize(20, 20)); // 稍大
-  closeButton->setFixedSize(40, 40);       // 稍大
-  closeButton->setFlat(true);
-  closeButton->setToolTip("隐藏");
-
-  // 路径标签
-  pathLabel = new QLabel(this);
-  pathLabel->setText(formatDisplayPath(rootPath));
-  pathLabel->setStyleSheet(
-      "color: #b0bec5; font-size: 11px; padding: 0 8px;"); // padding略增
-  pathLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-  pathLabel->setMaximumWidth(220); // 最大宽度增加
-  pathLabel->setMinimumWidth(20);
-  pathLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
-  pathLabel->setAlignment(Qt::AlignVCenter | Qt::AlignLeft);
-  pathLabel->setWordWrap(false);
-
-  // 更宽松的布局
-  QHBoxLayout *buttonLayout = new QHBoxLayout();
-  buttonLayout->addSpacing(6);
-  buttonLayout->addWidget(backButton);
-  buttonLayout->addSpacing(8);
-  buttonLayout->addWidget(pathLabel);
-  buttonLayout->addStretch();
-  buttonLayout->addWidget(closeButton);
-  buttonLayout->addSpacing(6);
-  buttonLayout->setContentsMargins(5, 3, 5, 3);
-
-  QVBoxLayout *mainLayout = new QVBoxLayout(this);
-  mainLayout->addLayout(buttonLayout);
-  mainLayout->addWidget(tree);
-  mainLayout->setSpacing(6);                  // 主体间距加大
-  mainLayout->setContentsMargins(0, 2, 0, 2); // 主体边距加大
   setLayout(mainLayout);
 
-  // 连接信号
-  connect(backButton, &QPushButton::clicked, this, &FileManagerWindow::goBack);
-  connect(closeButton, &QPushButton::clicked, this, &FileManagerWindow::close);
-  connect(tree, &QTreeView::clicked, this, &FileManagerWindow::onFileClicked);
-  connect(tree, &QTreeView::doubleClicked, this,
-          &FileManagerWindow::onFileClicked);
+  // 初始路径加载
+  currentPath = "/userdisk/Music";
+  loadFileItems(currentPath);
+}
+
+void FileManagerWindow::loadFileItems(const QString &path) {
+  QString rootPath = "/userdisk/Music";
+  QString normalizedPath = QDir(path).absolutePath();
+  if (!normalizedPath.startsWith(rootPath)) {
+    currentPath = rootPath;
+  } else {
+    currentPath = normalizedPath;
+  }
+
+  fileList->clear();
+  fileInfoList.clear();
+
+  QDir dir(currentPath);
+  QDir::SortFlags sortFlags = QDir::DirsFirst;
+  switch (sortMode) {
+  case SortMode::Name:
+    sortFlags |= QDir::Name;
+    break;
+  case SortMode::Time:
+    sortFlags |= QDir::Time;
+    break;
+  case SortMode::Type:
+    sortFlags |= QDir::Type;
+    break;
+  }
+
+  QFileInfoList entries =
+      dir.entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot, sortFlags);
+  QFileIconProvider iconProvider;
+
+  if (entries.isEmpty()) {
+    QListWidgetItem *item = new QListWidgetItem("此文件夹为空");
+    item->setTextAlignment(Qt::AlignCenter);
+    item->setForeground(QBrush(QColor("#888888")));
+    item->setSizeHint(QSize(fileList->width(), 60));
+    fileList->addItem(item);
+  }
+
+  for (const QFileInfo &info : entries) {
+    QListWidgetItem *item = new QListWidgetItem();
+
+    QFontMetrics fm(item->font());
+    QString elided = fm.elidedText(info.fileName(), Qt::ElideRight, 150);
+    item->setText(elided);
+
+    item->setIcon(iconProvider.icon(info));
+    item->setSizeHint(QSize(fileList->width(), 44)); // 视觉一致性
+    fileList->addItem(item);
+    fileInfoList.append(info);
+  }
+
+  updateBreadcrumb();
+}
+
+void FileManagerWindow::updateBreadcrumb() {
+  // 清理旧面包屑
+  QLayoutItem *child;
+  while ((child = breadcrumbLayout->takeAt(0)) != nullptr) {
+    if (child->widget()) {
+      child->widget()->deleteLater();
+    }
+    delete child;
+  }
+
+  QString basePath = "/userdisk/Music";
+  QString relativePath = currentPath.mid(basePath.length());
+  QStringList parts = relativePath.split('/', Qt::SkipEmptyParts);
+  QString pathAccumulator = basePath;
+
+  auto addButton = [&](const QString &label, const QString &path,
+                       bool isCurrent) {
+    QToolButton *btn = new QToolButton();
+
+    QFontMetrics fm(btn->font());
+    QString elided = fm.elidedText(label, Qt::ElideRight, 150);
+    btn->setText(elided);
+
+    if (isCurrent) {
+      // 当前路径高亮，纯白色加粗
+      btn->setStyleSheet(R"(
+        QToolButton {
+          color: white;
+          font-weight: bold;
+          background: transparent;
+          border: none;
+          padding: 4px 6px;
+        }
+      )");
+      btn->setEnabled(false);
+    } else {
+      // 非当前路径淡化
+      btn->setStyleSheet(R"(
+        QToolButton {
+          color: rgba(255, 255, 255, 0.6);
+          background: transparent;
+          border: none;
+          padding: 4px 6px;
+        }
+        QToolButton:hover {
+          background-color: #333333;
+          border-radius: 6px;
+        }
+      )");
+      connect(btn, &QToolButton::clicked, this,
+              [this, path]() { loadFileItems(path); });
+    }
+
+    breadcrumbLayout->addWidget(btn);
+  };
+
+  // 添加根目录按钮
+  bool isCurrentRoot = (parts.isEmpty());
+  addButton("存储", pathAccumulator, isCurrentRoot);
+
+  for (int i = 0; i < parts.size(); ++i) {
+    // 分隔符
+    QLabel *sep = new QLabel(" > ");
+    sep->setStyleSheet("color: rgba(255, 255, 255, 0.6);");
+    breadcrumbLayout->addWidget(sep);
+
+    pathAccumulator += "/" + parts[i];
+    bool isCurrent = (i == parts.size() - 1);
+    addButton(parts[i], pathAccumulator, isCurrent);
+  }
+
+  breadcrumbLayout->addStretch();
+
+  // 计算面包屑总宽度，设置 breadcrumbBar 最小宽度，确保触发横向滚动
+  int totalWidth = 0;
+  for (int i = 0; i < breadcrumbLayout->count(); ++i) {
+    if (auto w = breadcrumbLayout->itemAt(i)->widget()) {
+      totalWidth += w->sizeHint().width();
+    }
+  }
+  breadcrumbBar->setMinimumWidth(totalWidth + 20);
+
+  // 自动滚动到最右侧，显示当前路径
+  if (auto scrollArea =
+          qobject_cast<QScrollArea *>(breadcrumbBar->parentWidget())) {
+    QTimer::singleShot(0, [scrollArea]() {
+      scrollArea->horizontalScrollBar()->setValue(
+          scrollArea->horizontalScrollBar()->maximum());
+    });
+  }
 }
 
 void FileManagerWindow::goBack() {
-  QString currentPath = model->filePath(tree->rootIndex());
-  QString parentPath = QFileInfo(currentPath).dir().absolutePath();
-  if (parentPath.startsWith(rootPath) && parentPath != currentPath) {
-    tree->setRootIndex(model->index(parentPath));
-    QString displayParentPath = QFileInfo(parentPath).absoluteFilePath();
-    displayParentPath = formatDisplayPath(displayParentPath);
-    pathLabel->setText(displayParentPath);
-    pathLabel->setToolTip(displayParentPath); // 鼠标悬停显示完整路径
+  QDir dir(currentPath);
+  if (dir.cdUp()) {
+    QString newPath = dir.absolutePath();
+    if (newPath.startsWith("/userdisk/Music")) {
+      currentPath = newPath;
+      loadFileItems(currentPath);
+    }
   }
 }
 
-void FileManagerWindow::onFileClicked(const QModelIndex &index) {
-  static qint64 lastClickTime = 0;
-  qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
-
-  // 防误触判断 (300ms 内不处理二次点击)
-  if (currentTime - lastClickTime < 300)
-    return;
-  lastClickTime = currentTime;
-
-  if (!index.isValid())
-    return;
-
-  QString path = model->filePath(index);
-  QFileInfo fileInfo(path);
-
-  if (fileInfo.isDir()) {
-    if (path.startsWith(rootPath)) {
-      tree->setRootIndex(model->index(path));
-      QString displayPath = QFileInfo(path).absoluteFilePath();
-      displayPath = formatDisplayPath(displayPath);
-      pathLabel->setText(displayPath);
-      pathLabel->setToolTip(displayPath); // 鼠标悬停显示完整路径
+bool FileManagerWindow::eventFilter(QObject *watched, QEvent *event) {
+  if (watched == breadcrumbBar && event->type() == QEvent::Resize) {
+    QResizeEvent *resizeEvent = static_cast<QResizeEvent *>(event);
+    // 查找关闭按钮并移动它
+    QToolButton *btnClose = breadcrumbBar->findChild<QToolButton *>(
+        QString(), Qt::FindDirectChildrenOnly);
+    if (btnClose && btnClose->property("isCloseButton").toBool()) {
+      btnClose->move(resizeEvent->size().width() - btnClose->width() - 4, 2);
     }
+  }
+  return QWidget::eventFilter(watched, event);
+}
+
+void FileManagerWindow::onItemClicked(QListWidgetItem *item) {
+  int row = fileList->row(item);
+  if (row < 0 || row >= fileInfoList.size())
+    return;
+
+  QFileInfo info = fileInfoList[row];
+  if (info.isDir()) {
+    currentPath = info.absoluteFilePath();
+    loadFileItems(currentPath);
     return;
   }
 
   QMimeDatabase db;
-  QString mime = db.mimeTypeForFile(fileInfo).name();
+  QString mime = db.mimeTypeForFile(info).name();
 
   if (mime.startsWith("image/")) {
-    auto *viewer = new ImageViewer(path, this);
-    viewer->showFullScreen();
+    auto *viewer = new ImageViewer(info.absoluteFilePath(), this);
+    viewer->resize(320, 170);
+    viewer->move(0, 0);
+    viewer->show();
   } else if (mime.startsWith("video/") || mime.startsWith("audio/")) {
-    // 视频和音频都交由 VideoPlayer 处理
     QString program = QCoreApplication::applicationDirPath() + "/VideoPlayer";
-    QStringList arguments;
-    arguments << path;
-    QProcess::startDetached(program, arguments);
-  } else if (fileInfo.isExecutable()) {
-    QProcess::startDetached(path, QStringList());
+    QStringList args{info.absoluteFilePath()};
+    QProcess::startDetached(program, args);
+  } else if (info.isExecutable()) {
+    QProcess::startDetached(info.absoluteFilePath(), {});
   }
 }

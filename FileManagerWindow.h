@@ -2,28 +2,52 @@
 #define FILEMANAGERWINDOW_H
 
 #include <QWidget>
-#include <QFileSystemModel>
-#include <QTreeView>
+#include <QListWidget>
+#include <QFileInfo>
+#include <QHBoxLayout>
+#include <QVBoxLayout>
 #include <QPushButton>
+#include <QToolButton>
 #include <QLabel>
 
+#include "MyListWidget.h"
+
+enum class SortMode { Name, Time, Type };
+
 class FileManagerWindow : public QWidget {
-    Q_OBJECT
+  Q_OBJECT
 
 public:
-    explicit FileManagerWindow(QWidget *parent = nullptr);
+  explicit FileManagerWindow(QWidget *parent = nullptr);
 
 private slots:
-    void goBack();
-    void onFileClicked(const QModelIndex &index);
+  void goBack();
+  void onItemClicked(QListWidgetItem *item);
+
+protected:
+  bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
-    QFileSystemModel *model;
-    QTreeView *tree;
-    QPushButton *backButton;
-    QLabel *pathLabel; // 新增：路径标签
+  void loadFileItems(const QString &path);
+  void updateBreadcrumb();
+  QString formatDisplayPath(const QString &path);
 
-    const QString rootPath = "/userdisk/Music";  // 可根据实际需求修改根路径
+  // 左侧按钮栏
+  QPushButton *btnBack;
+  QPushButton *btnSort;
+  QPushButton *btnEdit;
+  QPushButton *btnDelete;
+
+  // 面包屑路径导航栏
+  QWidget *breadcrumbBar;
+  QHBoxLayout *breadcrumbLayout;
+  QToolButton *btnClose;
+
+  // 文件列表与路径数据
+  MyListWidget *fileList;
+  QList<QFileInfo> fileInfoList;
+  QString currentPath;
+  SortMode sortMode;
 };
 
 #endif // FILEMANAGERWINDOW_H

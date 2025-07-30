@@ -2,5 +2,8 @@
     <qresource prefix="/icons">
         <file>back.png</file>
         <file>close.png</file>
+        <file>sort.png</file>
+        <file>delete.png</file>
+        <file>edit.png</file>
     </qresource>
 </RCC>
