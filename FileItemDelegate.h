@@ -26,7 +26,7 @@ public:
     painter->drawRoundedRect(rect.adjusted(2, 2, -2, -2), 12, 12);
 
     // 图标
-    QRect iconRect(rect.left() + 14, rect.top() + 12, 16, 16);
+    QRect iconRect(rect.left() + 14, rect.top() + 10, 22, 22);
     icon.paint(painter, iconRect);
 
     // 文件名

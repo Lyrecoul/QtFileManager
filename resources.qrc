@@ -1,9 +1,21 @@
 <RCC>
-    <qresource prefix="/icons">
-        <file>back.png</file>
-        <file>close.png</file>
-        <file>sort.png</file>
-        <file>delete.png</file>
-        <file>edit.png</file>
-    </qresource>
+  <qresource prefix="/icons">
+    <file>back.png</file>
+    <file>close.png</file>
+    <file>delete.png</file>
+    <file>edit.png</file>
+    <file>film.png</file>
+    <file>folder.png</file>
+    <file>image.png</file>
+    <file>json.png</file>
+    <file>lyrics.png</file>
+    <file>markdown.png</file>
+    <file>music.png</file>
+    <file>sort.png</file>
+    <file>subtitles.png</file>
+    <file>text.png</file>
+    <file>disk.png</file>
+    <file>zip.png</file>
+    <file>unknown.png</file>
+  </qresource>
 </RCC>

@@ -217,6 +217,67 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
   loadFileItems(currentPath);
 }
 
+QIcon getMaterialIcon(const QFileInfo &info) {
+  if (info.isDir()) {
+    return QIcon(":/icons/folder.png");
+  }
+
+  QString suffix = info.suffix().toLower();
+
+  // 音频文件
+  if (suffix == "mp3" || suffix == "flac" || suffix == "wav" || suffix == "aac" || suffix == "ogg") {
+    return QIcon(":/icons/music.png");
+  }
+
+  // 视频文件
+  if (suffix == "mp4" || suffix == "mkv" || suffix == "avi" || suffix == "mov" || suffix == "wmv") {
+    return QIcon(":/icons/film.png");
+  }
+
+  // 图片文件
+  if (suffix == "png" || suffix == "jpg" || suffix == "jpeg" || suffix == "bmp" || suffix == "gif" || suffix == "webp") {
+    return QIcon(":/icons/image.png");
+  }
+
+  // 字幕文件
+  if (suffix == "srt" || suffix == "ass" || suffix == "vtt" || suffix == "sub") {
+    return QIcon(":/icons/subtitles.png");
+  }
+
+  // 歌词文件
+  if (suffix == "lrc") {
+    return QIcon(":/icons/lyrics.png");
+  }
+
+  // Markdown 文件
+  if (suffix == "md") {
+    return QIcon(":/icons/markdown.png");
+  }
+
+  // 文本文件
+  if (suffix == "txt" || suffix == "log" || suffix == "ini" || suffix == "conf") {
+    return QIcon(":/icons/text.png");
+  }
+
+  // JSON 文件
+  if (suffix == "json") {
+    return QIcon(":/icons/json.png");
+  }
+
+  // 磁盘镜像文件
+  if (suffix == "img" || suffix == "iso" || suffix == "wim") {
+    return QIcon(":/icons/disk.png");
+  }
+
+  // 压缩包文件
+  if (suffix == "zip" || suffix == "rar" || suffix == "tar" || suffix == "gz") {
+    return QIcon(":/icons/zip.png");
+  }
+
+  // 默认图标
+  return QIcon(":/icons/unknown.png");
+}
+
 void FileManagerWindow::loadFileItems(const QString &path) {
   QString rootPath = "/userdisk/Music";
   QString normalizedPath = QDir(path).absolutePath();
@@ -250,7 +311,7 @@ void FileManagerWindow::loadFileItems(const QString &path) {
     QListWidgetItem *item = new QListWidgetItem();
     QFontMetrics fm(item->font());
     item->setText(fm.elidedText(info.fileName(), Qt::ElideRight, 150));
-    item->setIcon(iconProvider.icon(info));
+    item->setIcon(getMaterialIcon(info));
     item->setSizeHint(QSize(fileList->width(), 44));
     fileList->addItem(item);
     fileInfoList.append(info);
