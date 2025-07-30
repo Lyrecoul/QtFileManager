@@ -19,14 +19,14 @@ public:
     QIcon icon = qvariant_cast<QIcon>(index.data(Qt::DecorationRole));
 
     // 背景
-    QColor bg = (option.state & QStyle::State_Selected) ? QColor("#444444") : QColor("#2b2b2b");
+    QColor bg = (option.state & QStyle::State_Selected) ? QColor("#333333") : QColor("#2b2b2b");
     painter->setBrush(bg);
     painter->setPen(Qt::NoPen);
     painter->setRenderHint(QPainter::Antialiasing);
-    painter->drawRoundedRect(rect.adjusted(2, 2, -2, -2), 6, 6);
+    painter->drawRoundedRect(rect.adjusted(2, 2, -2, -2), 12, 12);
 
     // 图标
-    QRect iconRect(rect.left() + 10, rect.top() + 10, 24, 24);
+    QRect iconRect(rect.left() + 14, rect.top() + 12, 16, 16);
     icon.paint(painter, iconRect);
 
     // 文件名
@@ -36,7 +36,7 @@ public:
 
     // 箭头
     painter->setPen(QColor("#888888"));
-    painter->drawText(QRect(rect.right() - 18, rect.top(), 16, rect.height()), Qt::AlignCenter, ">");
+    painter->drawText(QRect(rect.right() - 24, rect.top(), 16, rect.height()), Qt::AlignCenter, ">");
 
     painter->restore();
   }
