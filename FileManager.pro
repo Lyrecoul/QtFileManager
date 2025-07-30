@@ -3,12 +3,16 @@ QT += core gui widgets multimedia multimediawidgets
 SOURCES += \
     main.cpp \
     FileManagerWindow.cpp \
-    ImageViewer.cpp
+    ImageViewer.cpp \
+    FileItemDelegate.cpp \
+    VirtualKeyboardWidget.cpp
 
 HEADERS += \
     FileManagerWindow.h \
     ImageViewer.h \
-    MyListWidget.h
+    MyListWidget.h \
+    VirtualKeyboardWidget.h \
+    FileItemDelegate.h
 
 CONFIG += c++11
 LIBS += -L/home/lyrecoul/PenDevelopment/lib \

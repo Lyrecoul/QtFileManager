@@ -9,8 +9,10 @@
 #include <QPushButton>
 #include <QToolButton>
 #include <QLabel>
+#include <QLineEdit>
 
 #include "MyListWidget.h"
+#include "VirtualKeyboardWidget.h"
 
 enum class SortMode { Name, Time, Type };
 
@@ -23,6 +25,8 @@ public:
 private slots:
   void goBack();
   void onItemClicked(QListWidgetItem *item);
+  void startRename();
+  void finishRename();
 
 private:
   void loadFileItems(const QString &path);
@@ -45,6 +49,12 @@ private:
   QList<QFileInfo> fileInfoList;
   QString currentPath;
   SortMode sortMode;
+
+  // 重命名功能
+  bool isRenameMode;
+  QLineEdit *renameEdit;
+  VirtualKeyboardWidget *keyboard;
+  int renameIndex;
 };
 
 #endif // FILEMANAGERWINDOW_H

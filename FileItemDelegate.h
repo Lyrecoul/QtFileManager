@@ -7,43 +7,20 @@
 #include <QIcon>
 
 class FileItemDelegate : public QStyledItemDelegate {
+  Q_OBJECT
 public:
-  FileItemDelegate(QObject *parent = nullptr) : QStyledItemDelegate(parent) {}
+  explicit FileItemDelegate(QObject *parent = nullptr);
 
   void paint(QPainter *painter, const QStyleOptionViewItem &option,
-             const QModelIndex &index) const override {
-    painter->save();
+             const QModelIndex &index) const override;
 
-    QRect rect = option.rect;
-    QString name = index.data(Qt::DisplayRole).toString();
-    QIcon icon = qvariant_cast<QIcon>(index.data(Qt::DecorationRole));
+  QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override;
 
-    // 背景
-    QColor bg = (option.state & QStyle::State_Selected) ? QColor("#333333") : QColor("#2b2b2b");
-    painter->setBrush(bg);
-    painter->setPen(Qt::NoPen);
-    painter->setRenderHint(QPainter::Antialiasing);
-    painter->drawRoundedRect(rect.adjusted(2, 2, -2, -2), 12, 12);
+  void setShowEditIcon(bool show);
+  bool getShowEditIcon() const;
 
-    // 图标
-    QRect iconRect(rect.left() + 14, rect.top() + 10, 22, 22);
-    icon.paint(painter, iconRect);
-
-    // 文件名
-    QRect textRect = rect.adjusted(44, 0, -28, 0);
-    painter->setPen(Qt::white);
-    painter->drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft, name);
-
-    // 箭头
-    painter->setPen(QColor("#888888"));
-    painter->drawText(QRect(rect.right() - 24, rect.top(), 16, rect.height()), Qt::AlignCenter, ">");
-
-    painter->restore();
-  }
-
-  QSize sizeHint(const QStyleOptionViewItem &, const QModelIndex &) const override {
-    return QSize(100, 44);
-  }
+private:
+  bool showEditIcon;
 };
 
 #endif // FILEITEMDELEGATE_H

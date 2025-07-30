@@ -2,6 +2,7 @@
 #include "FileItemDelegate.h"
 #include "ImageViewer.h"
 #include "MyListWidget.h"
+#include "VirtualKeyboardWidget.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -9,6 +10,7 @@
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMimeDatabase>
 #include <QProcess>
 #include <QPushButton>
@@ -22,7 +24,8 @@
 
 FileManagerWindow::FileManagerWindow(QWidget *parent)
     : QWidget(parent, Qt::Tool | Qt::FramelessWindowHint),
-      sortMode(SortMode::Name) {
+      sortMode(SortMode::Name), isRenameMode(false), renameEdit(nullptr),
+      keyboard(nullptr), renameIndex(-1) {
 
   setWindowTitle("文件管理器");
   setAttribute(Qt::WA_DeleteOnClose, false);
@@ -86,6 +89,9 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
 
   QPushButton *btnEdit = createButton(":/icons/edit.png");
   QPushButton *btnDelete = createButton(":/icons/delete.png");
+
+  connect(btnEdit, &QPushButton::clicked, this,
+          &FileManagerWindow::startRename);
 
   sideLayout->addWidget(btnBack);
   sideLayout->addWidget(btnSort);
@@ -225,22 +231,26 @@ QIcon getMaterialIcon(const QFileInfo &info) {
   QString suffix = info.suffix().toLower();
 
   // 音频文件
-  if (suffix == "mp3" || suffix == "flac" || suffix == "wav" || suffix == "aac" || suffix == "ogg") {
+  if (suffix == "mp3" || suffix == "flac" || suffix == "wav" ||
+      suffix == "aac" || suffix == "ogg") {
     return QIcon(":/icons/music.png");
   }
 
   // 视频文件
-  if (suffix == "mp4" || suffix == "mkv" || suffix == "avi" || suffix == "mov" || suffix == "wmv") {
+  if (suffix == "mp4" || suffix == "mkv" || suffix == "avi" ||
+      suffix == "mov" || suffix == "wmv") {
     return QIcon(":/icons/film.png");
   }
 
   // 图片文件
-  if (suffix == "png" || suffix == "jpg" || suffix == "jpeg" || suffix == "bmp" || suffix == "gif" || suffix == "webp") {
+  if (suffix == "png" || suffix == "jpg" || suffix == "jpeg" ||
+      suffix == "bmp" || suffix == "gif" || suffix == "webp") {
     return QIcon(":/icons/image.png");
   }
 
   // 字幕文件
-  if (suffix == "srt" || suffix == "ass" || suffix == "vtt" || suffix == "sub") {
+  if (suffix == "srt" || suffix == "ass" || suffix == "vtt" ||
+      suffix == "sub") {
     return QIcon(":/icons/subtitles.png");
   }
 
@@ -255,7 +265,8 @@ QIcon getMaterialIcon(const QFileInfo &info) {
   }
 
   // 文本文件
-  if (suffix == "txt" || suffix == "log" || suffix == "ini" || suffix == "conf") {
+  if (suffix == "txt" || suffix == "log" || suffix == "ini" ||
+      suffix == "conf") {
     return QIcon(":/icons/text.png");
   }
 
@@ -389,6 +400,61 @@ void FileManagerWindow::onItemClicked(QListWidgetItem *item) {
   if (row < 0 || row >= fileInfoList.size())
     return;
 
+  if (isRenameMode) {
+    // 重命名模式下，点击文件项开始重命名
+    renameIndex = row;
+    QFileInfo info = fileInfoList[row];
+
+    // 创建编辑框
+    renameEdit = new QLineEdit(this);
+    renameEdit->setText(info.fileName());
+    renameEdit->setGeometry(fileList->geometry().left() + 44,
+                            fileList->geometry().top() + row * 48 + 12,
+                            fileList->width() - 72, 24);
+    renameEdit->setStyleSheet(
+        "background-color: #333333; color: white; border: 1px solid #555555; "
+        "border-radius: 4px; padding: 2px;");
+    renameEdit->show();
+    renameEdit->setFocus();
+
+    // 创建虚拟键盘
+    keyboard = new VirtualKeyboardWidget(this);
+    keyboard->move(0, height() - keyboard->height());
+    keyboard->show();
+
+    // 连接信号
+    connect(renameEdit, &QLineEdit::returnPressed, this,
+            &FileManagerWindow::finishRename);
+    connect(keyboard, &VirtualKeyboardWidget::textEntered, this,
+            [this](const QString &text) {
+              if (renameEdit) {
+                renameEdit->setText(text);
+                finishRename();
+              }
+            });
+            
+    // 连接虚拟键盘的取消信号，确保在关闭虚拟键盘时也清理输入框
+    connect(keyboard, &VirtualKeyboardWidget::cancelled, this, [this]() {
+      if (renameEdit && isRenameMode) {
+        renameEdit->deleteLater();
+        renameEdit = nullptr;
+        keyboard->deleteLater();
+        keyboard = nullptr;
+        isRenameMode = false;
+        renameIndex = -1;
+        
+        // 恢复列表项显示
+        FileItemDelegate *delegate = qobject_cast<FileItemDelegate*>(fileList->itemDelegate());
+        if (delegate) {
+          delegate->setShowEditIcon(false);
+          fileList->update();
+        }
+      }
+    });
+
+    return;
+  }
+
   QFileInfo info = fileInfoList[row];
   if (info.isDir()) {
     loadFileItems(info.absoluteFilePath());
@@ -408,5 +474,72 @@ void FileManagerWindow::onItemClicked(QListWidgetItem *item) {
     } else if (info.isExecutable()) {
       QProcess::startDetached(info.absoluteFilePath(), {});
     }
+  }
+}
+
+void FileManagerWindow::startRename() {
+  isRenameMode = !isRenameMode;
+
+  // 更新列表项显示
+  FileItemDelegate *delegate =
+      qobject_cast<FileItemDelegate *>(fileList->itemDelegate());
+  if (delegate) {
+    delegate->setShowEditIcon(isRenameMode);
+    fileList->update();
+  }
+
+  // 如果取消重命名模式，清理相关资源
+  if (!isRenameMode) {
+    if (renameEdit) {
+      renameEdit->deleteLater();
+      renameEdit = nullptr;
+    }
+    if (keyboard) {
+      keyboard->deleteLater();
+      keyboard = nullptr;
+    }
+    renameIndex = -1;
+  }
+}
+
+void FileManagerWindow::finishRename() {
+  if (!isRenameMode || !renameEdit || renameIndex < 0 ||
+      renameIndex >= fileInfoList.size())
+    return;
+
+  QString newName = renameEdit->text().trimmed();
+  if (newName.isEmpty()) {
+    // 如果新名称为空，取消重命名
+    renameEdit->deleteLater();
+    renameEdit = nullptr;
+    keyboard->deleteLater();
+    keyboard = nullptr;
+    return;
+  }
+
+  QFileInfo oldInfo = fileInfoList[renameIndex];
+  QString oldPath = oldInfo.absoluteFilePath();
+  QString newPath = oldInfo.absolutePath() + "/" + newName;
+
+  // 重命名文件
+  if (QFile::rename(oldPath, newPath)) {
+    // 重命名成功，重新加载文件列表
+    loadFileItems(currentPath);
+  }
+
+  // 清理资源
+  renameEdit->deleteLater();
+  renameEdit = nullptr;
+  keyboard->deleteLater();
+  keyboard = nullptr;
+  renameIndex = -1;
+  isRenameMode = false;
+
+  // 恢复列表项显示
+  FileItemDelegate *delegate =
+      qobject_cast<FileItemDelegate *>(fileList->itemDelegate());
+  if (delegate) {
+    delegate->setShowEditIcon(false);
+    fileList->update();
   }
 }
