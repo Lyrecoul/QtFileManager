@@ -8,6 +8,7 @@ int main(int argc, char *argv[]) {
 
   MyWindow = new FileManagerWindow();
 
+  MyWindow->setAttribute(Qt::WA_QuitOnClose, true);
   MyWindow->resize(320, 170);
   MyWindow->move(0, 0);
   MyWindow->show();

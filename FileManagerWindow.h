@@ -24,9 +24,6 @@ private slots:
   void goBack();
   void onItemClicked(QListWidgetItem *item);
 
-protected:
-  bool eventFilter(QObject *watched, QEvent *event) override;
-
 private:
   void loadFileItems(const QString &path);
   void updateBreadcrumb();
