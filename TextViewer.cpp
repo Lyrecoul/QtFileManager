@@ -32,7 +32,7 @@ TextViewer::TextViewer(const QString &path, QWidget *parent)
             background-color: #000000;
             color: #ffffff;
             border: none;
-            padding: 10px;
+            padding: 10px 42px 10px 10px; /* 右侧增加32px按钮宽度+10px边距 */
         }
         QTextBrowser, QTextEdit, QPlainTextEdit {
             font-family: "Microsoft YaHei", "微软雅黑";
