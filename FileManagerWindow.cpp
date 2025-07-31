@@ -1,6 +1,7 @@
 #include "FileManagerWindow.h"
 #include "FileItemDelegate.h"
 #include "ImageViewer.h"
+#include "MarkdownViewer.h"
 #include "MyListWidget.h"
 #include "VirtualKeyboardWidget.h"
 
@@ -481,6 +482,11 @@ void FileManagerWindow::onItemClicked(QListWidgetItem *item) {
       QProcess::startDetached(QCoreApplication::applicationDirPath() +
                                   "/VideoPlayer",
                               {info.absoluteFilePath()});
+    } else if (mime == "text/markdown" || info.suffix().toLower() == "md") {
+      auto *viewer = new MarkdownViewer(info.absoluteFilePath(), this);
+      viewer->resize(320, 170);
+      viewer->move(0, 0);
+      viewer->show();
     } else if (info.isExecutable()) {
       QProcess::startDetached(info.absoluteFilePath(), {});
     }
