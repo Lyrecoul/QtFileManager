@@ -1,29 +1,31 @@
 #include "TextViewer.h"
+#include "JsonHighlighter.h"
+#include "TextHighlighter.h"
 
 #include <QApplication>
-#include <QFileInfo>
-#include <QEvent>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QScrollBar>
-#include <QTextBrowser>
-#include <QFile>
 #include <QByteArray>
-#include <QShowEvent>
-#include <QResizeEvent>
-#include <QScroller>
-#include <QScrollArea>
+#include <QEvent>
+#include <QFile>
+#include <QFileInfo>
 #include <QFontDatabase>
+#include <QHBoxLayout>
+#include <QResizeEvent>
+#include <QScrollArea>
+#include <QScrollBar>
+#include <QScroller>
+#include <QShowEvent>
+#include <QTextBrowser>
+#include <QVBoxLayout>
 
 TextViewer::TextViewer(const QString &path, QWidget *parent)
     : QWidget(parent), currentPath(path) {
-    setWindowTitle(QFileInfo(path).fileName());
-    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
-    setAttribute(Qt::WA_TranslucentBackground);
-    setAttribute(Qt::WA_DeleteOnClose);
+  setWindowTitle(QFileInfo(path).fileName());
+  setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+  setAttribute(Qt::WA_TranslucentBackground);
+  setAttribute(Qt::WA_DeleteOnClose);
 
-    // 设置样式
-    setStyleSheet(R"(
+  // 设置样式
+  setStyleSheet(R"(
         QWidget {
             background-color: #000000;
             color: #ffffff;
@@ -41,59 +43,67 @@ TextViewer::TextViewer(const QString &path, QWidget *parent)
         QTextBrowser a { color: #4da6ff; }
     )");
 
-    // 创建文本浏览器
-    textBrowser = new QTextBrowser(this);
-    textBrowser->setFrameStyle(QFrame::NoFrame);
-    textBrowser->setOpenLinks(false);
-    textBrowser->setOpenExternalLinks(true);
-    // 设置文本不可选中
-    textBrowser->setTextInteractionFlags(Qt::NoTextInteraction);
+  // 创建文本浏览器
+  textBrowser = new QTextBrowser(this);
+  textBrowser->setFrameStyle(QFrame::NoFrame);
+  textBrowser->setOpenLinks(false);
+  textBrowser->setOpenExternalLinks(true);
+  // 设置文本不可选中
+  textBrowser->setTextInteractionFlags(Qt::NoTextInteraction);
 
-    // 创建关闭按钮
-    closeButton = new QPushButton("✕", this);
-    closeButton->setVisible(true);
-    closeButton->setStyleSheet(buttonStyle());
-    closeButton->setFixedSize(32, 32);
-    connect(closeButton, &QPushButton::clicked, this, &TextViewer::close);
+  // 创建关闭按钮
+  closeButton = new QPushButton("✕", this);
+  closeButton->setVisible(true);
+  closeButton->setStyleSheet(buttonStyle());
+  closeButton->setFixedSize(32, 32);
+  connect(closeButton, &QPushButton::clicked, this, &TextViewer::close);
 
-    // 设置布局
-    QVBoxLayout *mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(0, 0, 0, 0);
-    mainLayout->setSpacing(0);
-    mainLayout->addWidget(textBrowser);
+  // 设置布局
+  QVBoxLayout *mainLayout = new QVBoxLayout(this);
+  mainLayout->setContentsMargins(0, 0, 0, 0);
+  mainLayout->setSpacing(0);
+  mainLayout->addWidget(textBrowser);
 
-    // 禁用滚动条
-    textBrowser->verticalScrollBar()->setStyleSheet("QScrollBar { width: 0px; }");
-    textBrowser->horizontalScrollBar()->setStyleSheet("QScrollBar { height: 0px; }");
+  // 禁用滚动条
+  textBrowser->verticalScrollBar()->setStyleSheet("QScrollBar { width: 0px; }");
+  textBrowser->horizontalScrollBar()->setStyleSheet(
+      "QScrollBar { height: 0px; }");
 
-    // 启用触摸滑动支持
-    QScroller *scroller = QScroller::scroller(textBrowser);
-    QScroller::grabGesture(textBrowser, QScroller::TouchGesture);
+  // 启用触摸滑动支持
+  QScroller *scroller = QScroller::scroller(textBrowser);
+  QScroller::grabGesture(textBrowser, QScroller::TouchGesture);
 
-    // 配置滑动参数，使滑动更加平滑
-    QScrollerProperties properties = scroller->scrollerProperties();
-    QVariant decelerationFactor = 0.25; // 减速因子，值越小减速越快
-    QVariant velocity = 0.1; // 初始速度，值越小滑动越不灵敏
-    properties.setScrollMetric(QScrollerProperties::DecelerationFactor, decelerationFactor);
-    properties.setScrollMetric(QScrollerProperties::MousePressEventDelay, 0.2); // 延迟处理鼠标按下事件
-    properties.setScrollMetric(QScrollerProperties::DragVelocitySmoothingFactor, 0.8); // 速度平滑因子
-    properties.setScrollMetric(QScrollerProperties::MinimumVelocity, 0.0); // 最小速度
-    properties.setScrollMetric(QScrollerProperties::MaximumVelocity, 0.5); // 最大速度
-    properties.setScrollMetric(QScrollerProperties::OvershootDragResistanceFactor, 0.5); // 超出边界阻力
-    properties.setScrollMetric(QScrollerProperties::OvershootScrollDistanceFactor, 0.2); // 超出边界滚动距离
-    scroller->setScrollerProperties(properties);
+  // 配置滑动参数，使滑动更加平滑
+  QScrollerProperties properties = scroller->scrollerProperties();
+  QVariant decelerationFactor = 0.25; // 减速因子，值越小减速越快
+  QVariant velocity = 0.1;            // 初始速度，值越小滑动越不灵敏
+  properties.setScrollMetric(QScrollerProperties::DecelerationFactor,
+                             decelerationFactor);
+  properties.setScrollMetric(QScrollerProperties::MousePressEventDelay,
+                             0.2); // 延迟处理鼠标按下事件
+  properties.setScrollMetric(QScrollerProperties::DragVelocitySmoothingFactor,
+                             0.8); // 速度平滑因子
+  properties.setScrollMetric(QScrollerProperties::MinimumVelocity,
+                             0.0); // 最小速度
+  properties.setScrollMetric(QScrollerProperties::MaximumVelocity,
+                             0.5); // 最大速度
+  properties.setScrollMetric(QScrollerProperties::OvershootDragResistanceFactor,
+                             0.5); // 超出边界阻力
+  properties.setScrollMetric(QScrollerProperties::OvershootScrollDistanceFactor,
+                             0.2); // 超出边界滚动距离
+  scroller->setScrollerProperties(properties);
 
-    // 设置窗口大小为 320x170
-    resize(320, 170);
+  // 设置窗口大小为 320x170
+  resize(320, 170);
 
-    // 加载文本文件
-    if (!loadTextFile()) {
-        textBrowser->setHtml("<p style='color: red;'>无法加载文本文件</p>");
-    }
+  // 加载文本文件
+  if (!loadTextFile()) {
+    textBrowser->setHtml("<p style='color: red;'>无法加载文本文件</p>");
+  }
 }
 
 QString TextViewer::buttonStyle() const {
-    return R"(
+  return R"(
         QPushButton {
             color: white;
             font-size: 16px;
@@ -117,24 +127,30 @@ QString TextViewer::buttonStyle() const {
 }
 
 bool TextViewer::loadTextFile() {
-    QFile file(currentPath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        return false;
-    }
+  QFile file(currentPath);
+  if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    return false;
+  }
 
-    QByteArray textData = file.readAll();
-    file.close();
+  QByteArray textData = file.readAll();
+  file.close();
 
-    // 直接设置文本内容
-    textBrowser->setPlainText(QString::fromUtf8(textData));
-    return true;
+  QString text = QString::fromUtf8(textData);
+  textBrowser->setPlainText(text);
+
+  QString suffix = QFileInfo(currentPath).suffix().toLower();
+  if (suffix == "json") {
+    new JsonHighlighter(textBrowser->document());
+  }
+
+  return true;
 }
 
 void TextViewer::resizeEvent(QResizeEvent *event) {
-    QWidget::resizeEvent(event);
+  QWidget::resizeEvent(event);
 
-    // 将关闭按钮放置在右上角
-    if (closeButton) {
-        closeButton->move(width() - closeButton->width() - 5, 5);
-    }
+  // 将关闭按钮放置在右上角
+  if (closeButton) {
+    closeButton->move(width() - closeButton->width() - 5, 5);
+  }
 }

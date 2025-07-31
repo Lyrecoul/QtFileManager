@@ -10,7 +10,9 @@ SOURCES += \
     VirtualKeyboardWidget.cpp \
     MarkdownViewer/md4c/md4c.c \
     MarkdownViewer/md4c/md4c-html.c \
-    MarkdownViewer/md4c/entity.c
+    MarkdownViewer/md4c/entity.c \
+    TextHighlighter.cpp \
+    JsonHighlighter.cpp
 
 HEADERS += \
     FileManagerWindow.h \
@@ -22,7 +24,9 @@ HEADERS += \
     FileItemDelegate.h \
     MarkdownViewer/md4c/md4c.h \
     MarkdownViewer/md4c/md4c-html.h \
-    MarkdownViewer/md4c/entity.h
+    MarkdownViewer/md4c/entity.h \
+    TextHighlighter.h \
+    JsonHighlighter.h
 
 QMAKE_CFLAGS += -std=c99
 QMAKE_CXXFLAGS += -std=gnu++11
