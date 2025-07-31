@@ -104,7 +104,21 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
     textBrowser->horizontalScrollBar()->setStyleSheet("QScrollBar { height: 0px; }");
 
     // 启用触摸滑动支持
+    QScroller *scroller = QScroller::scroller(textBrowser);
     QScroller::grabGesture(textBrowser, QScroller::TouchGesture);
+
+    // 配置滑动参数，使滑动更加平滑
+    QScrollerProperties properties = scroller->scrollerProperties();
+    QVariant decelerationFactor = 0.25; // 减速因子，值越小减速越快
+    QVariant velocity = 0.1; // 初始速度，值越小滑动越不灵敏
+    properties.setScrollMetric(QScrollerProperties::DecelerationFactor, decelerationFactor);
+    properties.setScrollMetric(QScrollerProperties::MousePressEventDelay, 0.2); // 延迟处理鼠标按下事件
+    properties.setScrollMetric(QScrollerProperties::DragVelocitySmoothingFactor, 0.8); // 速度平滑因子
+    properties.setScrollMetric(QScrollerProperties::MinimumVelocity, 0.0); // 最小速度
+    properties.setScrollMetric(QScrollerProperties::MaximumVelocity, 0.5); // 最大速度
+    properties.setScrollMetric(QScrollerProperties::OvershootDragResistanceFactor, 0.5); // 超出边界阻力
+    properties.setScrollMetric(QScrollerProperties::OvershootScrollDistanceFactor, 0.2); // 超出边界滚动距离
+    scroller->setScrollerProperties(properties);
 
     // 设置窗口大小为 320x170
     resize(320, 170);
