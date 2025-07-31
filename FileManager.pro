@@ -5,6 +5,7 @@ SOURCES += \
     FileManagerWindow.cpp \
     ImageViewer.cpp \
     MarkdownViewer.cpp \
+    TextViewer.cpp \
     FileItemDelegate.cpp \
     VirtualKeyboardWidget.cpp \
     MarkdownViewer/md4c/md4c.c \
@@ -15,6 +16,7 @@ HEADERS += \
     FileManagerWindow.h \
     ImageViewer.h \
     MarkdownViewer.h \
+    TextViewer.h \
     MyListWidget.h \
     VirtualKeyboardWidget.h \
     FileItemDelegate.h \

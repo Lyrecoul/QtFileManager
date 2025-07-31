@@ -2,6 +2,7 @@
 #include "FileItemDelegate.h"
 #include "ImageViewer.h"
 #include "MarkdownViewer.h"
+#include "TextViewer.h"
 #include "MyListWidget.h"
 #include "VirtualKeyboardWidget.h"
 
@@ -484,6 +485,13 @@ void FileManagerWindow::onItemClicked(QListWidgetItem *item) {
                               {info.absoluteFilePath()});
     } else if (mime == "text/markdown" || info.suffix().toLower() == "md") {
       auto *viewer = new MarkdownViewer(info.absoluteFilePath(), this);
+      viewer->resize(320, 170);
+      viewer->move(0, 0);
+      viewer->show();
+    } else if (mime.startsWith("text/") || info.suffix().toLower() == "txt" || 
+               info.suffix().toLower() == "log" || info.suffix().toLower() == "ini" || 
+               info.suffix().toLower() == "conf" || info.suffix().toLower() == "json") {
+      auto *viewer = new TextViewer(info.absoluteFilePath(), this);
       viewer->resize(320, 170);
       viewer->move(0, 0);
       viewer->show();
