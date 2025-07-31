@@ -2,8 +2,8 @@
 #include "FileItemDelegate.h"
 #include "ImageViewer.h"
 #include "MarkdownViewer.h"
-#include "TextViewer.h"
 #include "MyListWidget.h"
+#include "TextViewer.h"
 #include "VirtualKeyboardWidget.h"
 
 #include <QCoreApplication>
@@ -291,6 +291,13 @@ QIcon getMaterialIcon(const QFileInfo &info) {
     return QIcon(":/icons/zip.png");
   }
 
+  // 代码文件
+  if (suffix == "c" || suffix == "cpp" || suffix == "h" || suffix == "py" ||
+      suffix == "java" || suffix == "js" || suffix == "html" ||
+      suffix == "css") {
+    return QIcon(":/icons/code.png");
+  }
+
   // 默认图标
   return QIcon(":/icons/unknown.png");
 }
@@ -488,9 +495,11 @@ void FileManagerWindow::onItemClicked(QListWidgetItem *item) {
       viewer->resize(320, 170);
       viewer->move(0, 0);
       viewer->show();
-    } else if (mime.startsWith("text/") || info.suffix().toLower() == "txt" || 
-               info.suffix().toLower() == "log" || info.suffix().toLower() == "ini" || 
-               info.suffix().toLower() == "conf" || info.suffix().toLower() == "json") {
+    } else if (mime.startsWith("text/") || info.suffix().toLower() == "txt" ||
+               info.suffix().toLower() == "log" ||
+               info.suffix().toLower() == "ini" ||
+               info.suffix().toLower() == "conf" ||
+               info.suffix().toLower() == "json") {
       auto *viewer = new TextViewer(info.absoluteFilePath(), this);
       viewer->resize(320, 170);
       viewer->move(0, 0);

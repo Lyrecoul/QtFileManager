@@ -11,7 +11,7 @@ SOURCES += \
     MarkdownViewer/md4c/md4c.c \
     MarkdownViewer/md4c/md4c-html.c \
     MarkdownViewer/md4c/entity.c \
-    TextHighlighter.cpp \
+    CHighlighter.cpp \
     JsonHighlighter.cpp
 
 HEADERS += \
@@ -25,7 +25,7 @@ HEADERS += \
     MarkdownViewer/md4c/md4c.h \
     MarkdownViewer/md4c/md4c-html.h \
     MarkdownViewer/md4c/entity.h \
-    TextHighlighter.h \
+    CHighlighter.h \
     JsonHighlighter.h
 
 QMAKE_CFLAGS += -std=c99

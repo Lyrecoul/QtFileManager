@@ -1,6 +1,6 @@
 #include "TextViewer.h"
 #include "JsonHighlighter.h"
-#include "TextHighlighter.h"
+#include "CHighlighter.h"
 
 #include <QApplication>
 #include <QByteArray>
@@ -141,6 +141,8 @@ bool TextViewer::loadTextFile() {
   QString suffix = QFileInfo(currentPath).suffix().toLower();
   if (suffix == "json") {
     new JsonHighlighter(textBrowser->document());
+  } else if (suffix == "cpp" || suffix == "h" || suffix == "c") {
+    new CHighlighter(textBrowser->document());
   }
 
   return true;

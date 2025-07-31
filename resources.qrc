@@ -17,5 +17,6 @@
     <file>icons/disk.png</file>
     <file>icons/zip.png</file>
     <file>icons/unknown.png</file>
+    <file>icons/code.png</file>
   </qresource>
 </RCC>
