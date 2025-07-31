@@ -25,7 +25,9 @@
 FileManagerWindow::FileManagerWindow(QWidget *parent)
     : QWidget(parent, Qt::Tool | Qt::FramelessWindowHint),
       sortMode(SortMode::Name), isRenameMode(false), renameEdit(nullptr),
-      keyboard(nullptr), renameIndex(-1) {
+      keyboard(nullptr), renameIndex(-1), isDeleteMode(false), deleteIndex(-1),
+      deleteDialog(nullptr), deleteConfirmButton(nullptr),
+      deleteCancelButton(nullptr) {
 
   setWindowTitle("文件管理器");
   setAttribute(Qt::WA_DeleteOnClose, false);
@@ -78,20 +80,22 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
     return btn;
   };
 
-  QPushButton *btnBack = createButton(":/icons/back.png");
+  btnBack = createButton(":/icons/back.png");
   connect(btnBack, &QPushButton::clicked, this, &FileManagerWindow::goBack);
 
-  QPushButton *btnSort = createButton(":/icons/sort.png");
+  btnSort = createButton(":/icons/sort.png");
   connect(btnSort, &QPushButton::clicked, this, [this]() {
     sortMode = static_cast<SortMode>((static_cast<int>(sortMode) + 1) % 3);
     loadFileItems(currentPath);
   });
 
-  QPushButton *btnEdit = createButton(":/icons/edit.png");
-  QPushButton *btnDelete = createButton(":/icons/delete.png");
+  btnEdit = createButton(":/icons/edit.png");
+  btnDelete = createButton(":/icons/delete.png");
 
   connect(btnEdit, &QPushButton::clicked, this,
           &FileManagerWindow::startRename);
+  connect(btnDelete, &QPushButton::clicked, this,
+          &FileManagerWindow::startDelete);
 
   sideLayout->addWidget(btnBack);
   sideLayout->addWidget(btnSort);
@@ -400,6 +404,11 @@ void FileManagerWindow::onItemClicked(QListWidgetItem *item) {
   if (row < 0 || row >= fileInfoList.size())
     return;
 
+  if (isDeleteMode) {
+    showDeleteConfirmationDialog(row);
+    return;
+  }
+
   if (isRenameMode) {
     // 重命名模式下，点击文件项开始重命名
     renameIndex = row;
@@ -432,7 +441,7 @@ void FileManagerWindow::onItemClicked(QListWidgetItem *item) {
                 finishRename();
               }
             });
-            
+
     // 连接虚拟键盘的取消信号，确保在关闭虚拟键盘时也清理输入框
     connect(keyboard, &VirtualKeyboardWidget::cancelled, this, [this]() {
       if (renameEdit && isRenameMode) {
@@ -442,9 +451,10 @@ void FileManagerWindow::onItemClicked(QListWidgetItem *item) {
         keyboard = nullptr;
         isRenameMode = false;
         renameIndex = -1;
-        
+
         // 恢复列表项显示
-        FileItemDelegate *delegate = qobject_cast<FileItemDelegate*>(fileList->itemDelegate());
+        FileItemDelegate *delegate =
+            qobject_cast<FileItemDelegate *>(fileList->itemDelegate());
         if (delegate) {
           delegate->setShowEditIcon(false);
           fileList->update();
@@ -478,6 +488,19 @@ void FileManagerWindow::onItemClicked(QListWidgetItem *item) {
 }
 
 void FileManagerWindow::startRename() {
+  // 如果当前处于删除模式，先退出删除模式
+  if (isDeleteMode) {
+    isDeleteMode = false;
+    FileItemDelegate *delegate =
+        qobject_cast<FileItemDelegate *>(fileList->itemDelegate());
+    if (delegate) {
+      delegate->setShowDeleteIcon(false);
+      fileList->update();
+    }
+    hideDeleteConfirmationDialog();
+    btnDelete->setEnabled(true);
+  }
+
   isRenameMode = !isRenameMode;
 
   // 更新列表项显示
@@ -487,6 +510,9 @@ void FileManagerWindow::startRename() {
     delegate->setShowEditIcon(isRenameMode);
     fileList->update();
   }
+
+  // 根据重命名模式状态设置删除按钮的可用性
+  btnDelete->setEnabled(!isRenameMode);
 
   // 如果取消重命名模式，清理相关资源
   if (!isRenameMode) {
@@ -518,13 +544,16 @@ void FileManagerWindow::finishRename() {
   }
 
   QFileInfo oldInfo = fileInfoList[renameIndex];
-  QString oldPath = oldInfo.absoluteFilePath();
+
+  // 获取新路径
   QString newPath = oldInfo.absolutePath() + "/" + newName;
 
-  // 重命名文件
-  if (QFile::rename(oldPath, newPath)) {
-    // 重命名成功，重新加载文件列表
-    loadFileItems(currentPath);
+  // 重命名文件或文件夹
+  if (QFile::rename(oldInfo.absoluteFilePath(), newPath)) {
+    // 更新文件信息列表
+    fileInfoList[renameIndex] = QFileInfo(newPath);
+    // 更新列表项显示
+    fileList->item(renameIndex)->setText(newName);
   }
 
   // 清理资源
@@ -532,14 +561,193 @@ void FileManagerWindow::finishRename() {
   renameEdit = nullptr;
   keyboard->deleteLater();
   keyboard = nullptr;
-  renameIndex = -1;
-  isRenameMode = false;
 
-  // 恢复列表项显示
+  // 退出重命名模式
+  isRenameMode = false;
+  renameIndex = -1;
+
+  // 更新列表项显示
   FileItemDelegate *delegate =
       qobject_cast<FileItemDelegate *>(fileList->itemDelegate());
   if (delegate) {
     delegate->setShowEditIcon(false);
     fileList->update();
   }
+}
+
+void FileManagerWindow::startDelete() {
+  // 如果当前处于重命名模式，先退出重命名模式
+  if (isRenameMode) {
+    isRenameMode = false;
+    FileItemDelegate *delegate =
+        qobject_cast<FileItemDelegate *>(fileList->itemDelegate());
+    if (delegate) {
+      delegate->setShowEditIcon(false);
+      fileList->update();
+    }
+    if (renameEdit) {
+      renameEdit->deleteLater();
+      renameEdit = nullptr;
+    }
+    if (keyboard) {
+      keyboard->deleteLater();
+      keyboard = nullptr;
+    }
+    renameIndex = -1;
+    btnEdit->setEnabled(true);
+  }
+
+  isDeleteMode = !isDeleteMode;
+
+  // 更新列表项显示
+  FileItemDelegate *delegate =
+      qobject_cast<FileItemDelegate *>(fileList->itemDelegate());
+  if (delegate) {
+    delegate->setShowDeleteIcon(isDeleteMode);
+    fileList->update();
+  }
+
+  // 根据删除模式状态设置编辑按钮的可用性
+  btnEdit->setEnabled(!isDeleteMode);
+
+  // 如果取消删除模式，清理相关资源
+  if (!isDeleteMode) {
+    hideDeleteConfirmationDialog();
+  }
+}
+
+void FileManagerWindow::showDeleteConfirmationDialog(int itemIndex) {
+  if (deleteDialog) {
+    hideDeleteConfirmationDialog();
+  }
+
+  deleteIndex = itemIndex;
+  QFileInfo info = fileInfoList[itemIndex];
+
+  // 遮罩层
+  deleteDialog = new QWidget(this, Qt::FramelessWindowHint);
+  deleteDialog->setGeometry(0, 0, width(), height());
+  deleteDialog->setStyleSheet("background-color: rgba(0, 0, 0, 180);");
+
+  // 深色卡片容器
+  QWidget *card = new QWidget(deleteDialog);
+  card->setFixedSize(260, 160);
+  card->move((width() - card->width()) / 2, (height() - card->height()) / 2);
+  card->setStyleSheet(R"(
+    background-color: #222;
+    border-radius: 12px;
+  )");
+
+  QVBoxLayout *cardLayout = new QVBoxLayout(card);
+  cardLayout->setContentsMargins(16, 16, 16, 16);
+  cardLayout->setSpacing(16);
+
+  // 主标题
+  QLabel *title = new QLabel("确认删除？", card);
+  title->setAlignment(Qt::AlignCenter);
+  title->setStyleSheet("font-size: 18px; font-weight: bold; color: white;");
+  cardLayout->addWidget(title);
+
+  // 文件名（副标题）
+  QLabel *subtitle = new QLabel(info.fileName(), card);
+  subtitle->setAlignment(Qt::AlignCenter);
+  subtitle->setStyleSheet("font-size: 14px; color: #bbbbbb;");
+  cardLayout->addWidget(subtitle);
+
+  // 按钮布局
+  QHBoxLayout *btnLayout = new QHBoxLayout();
+  btnLayout->setSpacing(12);
+
+  // 取消按钮
+  deleteCancelButton = new QPushButton("取消");
+  deleteCancelButton->setStyleSheet(R"(
+    QPushButton {
+      background-color: #444;
+      color: white;
+      font-size: 14px;
+      border-radius: 8px;
+      padding: 10px;
+    }
+    QPushButton:hover {
+      background-color: #666;
+    }
+  )");
+  deleteCancelButton->setSizePolicy(QSizePolicy::Expanding,
+                                    QSizePolicy::Preferred);
+  connect(deleteCancelButton, &QPushButton::clicked, this,
+          &FileManagerWindow::cancelDelete);
+  btnLayout->addWidget(deleteCancelButton);
+
+  // 删除按钮
+  deleteConfirmButton = new QPushButton("删除");
+  deleteConfirmButton->setStyleSheet(R"(
+    QPushButton {
+      background-color: #d32f2f;
+      color: white;
+      font-size: 14px;
+      border-radius: 8px;
+      padding: 10px;
+    }
+    QPushButton:hover {
+      background-color: #e53935;
+    }
+  )");
+  deleteConfirmButton->setSizePolicy(QSizePolicy::Expanding,
+                                     QSizePolicy::Preferred);
+  connect(deleteConfirmButton, &QPushButton::clicked, this,
+          &FileManagerWindow::confirmDelete);
+  btnLayout->addWidget(deleteConfirmButton);
+
+  cardLayout->addLayout(btnLayout);
+
+  deleteDialog->show();
+}
+
+void FileManagerWindow::hideDeleteConfirmationDialog() {
+  if (deleteDialog) {
+    deleteDialog->deleteLater();
+    deleteDialog = nullptr;
+    deleteConfirmButton = nullptr;
+    deleteCancelButton = nullptr;
+  }
+}
+
+void FileManagerWindow::confirmDelete() {
+  if (deleteIndex < 0 || deleteIndex >= fileInfoList.size()) {
+    hideDeleteConfirmationDialog();
+    return;
+  }
+
+  QFileInfo info = fileInfoList[deleteIndex];
+  bool success = false;
+
+  if (info.isDir()) {
+    QDir dir(info.absoluteFilePath());
+    success = dir.removeRecursively();
+  } else {
+    success = QFile::remove(info.absoluteFilePath());
+  }
+
+  if (success) {
+    // 从列表中移除该项
+    fileInfoList.removeAt(deleteIndex);
+    delete fileList->takeItem(deleteIndex);
+  }
+
+  // 关闭对话框并退出删除模式
+  hideDeleteConfirmationDialog();
+  isDeleteMode = false;
+
+  // 更新列表项显示
+  FileItemDelegate *delegate =
+      qobject_cast<FileItemDelegate *>(fileList->itemDelegate());
+  if (delegate) {
+    delegate->setShowDeleteIcon(false);
+    fileList->update();
+  }
+}
+
+void FileManagerWindow::cancelDelete() {
+  hideDeleteConfirmationDialog();
+  // 保持在删除模式，用户可以选择其他文件
 }

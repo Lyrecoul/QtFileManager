@@ -1,7 +1,7 @@
 #include "FileItemDelegate.h"
 
 FileItemDelegate::FileItemDelegate(QObject *parent)
-    : QStyledItemDelegate(parent), showEditIcon(false) {
+    : QStyledItemDelegate(parent), showEditIcon(false), showDeleteIcon(false) {
 }
 
 void FileItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
@@ -28,9 +28,11 @@ void FileItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &opti
     painter->setPen(Qt::white);
     painter->drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft, name);
 
-    // 箭头或编辑图标
+    // 箭头、编辑图标或删除图标
     painter->setPen(QColor("#888888"));
-    if (showEditIcon) {
+    if (showDeleteIcon) {
+      painter->drawText(QRect(rect.right() - 24, rect.top(), 16, rect.height()), Qt::AlignCenter, "✖");
+    } else if (showEditIcon) {
       painter->drawText(QRect(rect.right() - 24, rect.top(), 16, rect.height()), Qt::AlignCenter, "✎");
     } else {
       painter->drawText(QRect(rect.right() - 24, rect.top(), 16, rect.height()), Qt::AlignCenter, ">");
@@ -49,4 +51,12 @@ void FileItemDelegate::setShowEditIcon(bool show) {
 
 bool FileItemDelegate::getShowEditIcon() const {
     return showEditIcon;
+}
+
+void FileItemDelegate::setShowDeleteIcon(bool show) {
+    showDeleteIcon = show;
+}
+
+bool FileItemDelegate::getShowDeleteIcon() const {
+    return showDeleteIcon;
 }

@@ -18,9 +18,12 @@ public:
 
   void setShowEditIcon(bool show);
   bool getShowEditIcon() const;
+  void setShowDeleteIcon(bool show);
+  bool getShowDeleteIcon() const;
 
 private:
   bool showEditIcon;
+  bool showDeleteIcon;
 };
 
 #endif // FILEITEMDELEGATE_H
