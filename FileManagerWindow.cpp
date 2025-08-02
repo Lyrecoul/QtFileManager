@@ -110,71 +110,6 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
   sideWidget->setLayout(sideLayout);
   sideWidget->setFixedWidth(40);
 
-  // =============== 面包屑布局 ===============
-  breadcrumbBar = new QWidget();
-  breadcrumbLayout = new QHBoxLayout(breadcrumbBar);
-  breadcrumbLayout->setContentsMargins(4, 0, 4, 0);
-  breadcrumbLayout->setSpacing(0);
-
-  breadcrumbBar->setStyleSheet(R"(
-    QToolButton {
-        color: rgba(255, 255, 255, 0.6);
-        background: transparent;
-        border: none;
-        padding: 4px 6px;
-        font-weight: normal;
-    }
-    QToolButton:hover {
-        background-color: #333333;
-        border-radius: 6px;
-    }
-  )");
-
-  // 滚动区域（只包 breadcrumbBar）
-  QScrollArea *breadcrumbScroll = new QScrollArea();
-  breadcrumbScroll->setWidget(breadcrumbBar);
-  breadcrumbScroll->setWidgetResizable(true);
-  breadcrumbScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-  breadcrumbScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-  breadcrumbScroll->setFixedHeight(32);
-  breadcrumbScroll->setStyleSheet(
-      "QScrollArea { background: transparent; border: none; }");
-
-  QScroller::grabGesture(breadcrumbScroll->viewport(), QScroller::TouchGesture);
-  QScrollerProperties sp =
-      QScroller::scroller(breadcrumbScroll->viewport())->scrollerProperties();
-  sp.setScrollMetric(QScrollerProperties::HorizontalOvershootPolicy,
-                     QScrollerProperties::OvershootAlwaysOff);
-  QScroller::scroller(breadcrumbScroll->viewport())->setScrollerProperties(sp);
-
-  // 右侧关闭按钮，脱离滚动区域
-  QToolButton *btnClose = new QToolButton();
-  btnClose->setIcon(QIcon(":/icons/close.png"));
-  btnClose->setIconSize(QSize(16, 16)); // 明确图标小于按钮
-  btnClose->setFixedSize(28, 28);       // 保证圆角匹配
-
-  btnClose->setStyleSheet(R"(
-  QToolButton {
-    background-color: #333333;                 /* 试用灰色便于观察 */
-    border: 1px solid transparent;             /* 强制启用border-radius渲染 */
-    border-radius: 14px;                       /* 圆角设定 */
-    padding: 0px;
-    margin: 0px;
-  }
-  QToolButton:hover {
-    background-color: #888888;
-  }
-)");
-  connect(btnClose, &QToolButton::clicked, this, &FileManagerWindow::close);
-
-  QWidget *breadcrumbContainer = new QWidget();
-  QHBoxLayout *breadcrumbContainerLayout = new QHBoxLayout(breadcrumbContainer);
-  breadcrumbContainerLayout->setContentsMargins(0, 0, 0, 0);
-  breadcrumbContainerLayout->setSpacing(0);
-  breadcrumbContainerLayout->addWidget(breadcrumbScroll);
-  breadcrumbContainerLayout->addWidget(btnClose);
-  breadcrumbContainer->setFixedHeight(32);
-
   // =============== 文件列表 ===============
   fileList = new MyListWidget();
   fileList->setSpacing(4);
@@ -216,7 +151,6 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
   QVBoxLayout *mainAreaLayout = new QVBoxLayout();
   mainAreaLayout->setContentsMargins(0, 4, 4, 4);
   mainAreaLayout->setSpacing(4);
-  mainAreaLayout->addWidget(breadcrumbContainer);
   mainAreaLayout->addWidget(fileList);
 
   QHBoxLayout *mainLayout = new QHBoxLayout(this);
@@ -317,6 +251,46 @@ void FileManagerWindow::loadFileItems(const QString &path) {
   fileList->clear();
   fileInfoList.clear();
 
+  // 添加面包屑导航作为第一项
+  QListWidgetItem *breadcrumbItem = new QListWidgetItem();
+  breadcrumbItem->setSizeHint(QSize(fileList->width(), 32));
+  fileList->addItem(breadcrumbItem);
+
+  // 创建面包屑导航容器
+  QWidget *breadcrumbContainer = new QWidget();
+  QHBoxLayout *breadcrumbContainerLayout = new QHBoxLayout(breadcrumbContainer);
+  breadcrumbContainerLayout->setContentsMargins(4, 0, 4, 0);
+  breadcrumbContainerLayout->setSpacing(0);
+
+  // 创建面包屑导航栏
+  QWidget *breadcrumbBar = new QWidget();
+  QHBoxLayout *breadcrumbLayout = new QHBoxLayout(breadcrumbBar);
+  breadcrumbLayout->setContentsMargins(0, 0, 0, 0);
+  breadcrumbLayout->setSpacing(0);
+
+  breadcrumbBar->setStyleSheet(R"(
+    QToolButton {
+        color: rgba(255, 255, 255, 0.6);
+        background: transparent;
+        border: none;
+        padding: 4px 6px;
+        font-weight: normal;
+    }
+    QToolButton:hover {
+        background-color: #333333;
+        border-radius: 6px;
+    }
+  )");
+
+  // 移除关闭按钮
+  breadcrumbContainerLayout->addWidget(breadcrumbBar);
+
+  // 将面包屑导航容器设置为列表项的部件
+  fileList->setItemWidget(breadcrumbItem, breadcrumbContainer);
+
+  // 更新面包屑导航内容
+  updateBreadcrumbForItem(breadcrumbBar);
+
   QDir dir(currentPath);
   QDir::SortFlags sortFlags = QDir::DirsFirst;
   if (sortMode == SortMode::Name)
@@ -331,11 +305,15 @@ void FileManagerWindow::loadFileItems(const QString &path) {
   QFileIconProvider iconProvider;
 
   if (entries.isEmpty()) {
-    QListWidgetItem *item = new QListWidgetItem("此文件夹为空");
-    item->setTextAlignment(Qt::AlignCenter);
-    item->setForeground(QBrush(QColor("#888888")));
+    QLabel *emptyLabel = new QLabel("此文件夹为空");
+    emptyLabel->setAlignment(Qt::AlignCenter);
+    emptyLabel->setStyleSheet("background: transparent; color: #888888;");
+    emptyLabel->setFixedHeight(60);
+
+    QListWidgetItem *item = new QListWidgetItem();
     item->setSizeHint(QSize(fileList->width(), 60));
     fileList->addItem(item);
+    fileList->setItemWidget(item, emptyLabel);
   }
 
   for (const QFileInfo &info : entries) {
@@ -347,11 +325,15 @@ void FileManagerWindow::loadFileItems(const QString &path) {
     fileList->addItem(item);
     fileInfoList.append(info);
   }
-
-  updateBreadcrumb();
 }
 
-void FileManagerWindow::updateBreadcrumb() {
+void FileManagerWindow::updateBreadcrumbForItem(QWidget *breadcrumbBar) {
+  QHBoxLayout *breadcrumbLayout =
+      qobject_cast<QHBoxLayout *>(breadcrumbBar->layout());
+  if (!breadcrumbLayout)
+    return;
+
+  // 清除现有内容
   QLayoutItem *child;
   while ((child = breadcrumbLayout->takeAt(0))) {
     if (child->widget())
@@ -390,26 +372,21 @@ void FileManagerWindow::updateBreadcrumb() {
   }
 
   breadcrumbLayout->addStretch();
-
-  QTimer::singleShot(0, [this]() {
-    if (breadcrumbLayout->count() > 0) {
-      QWidget *last =
-          breadcrumbLayout->itemAt(breadcrumbLayout->count() - 1)->widget();
-      if (last) {
-        if (auto scrollArea =
-                qobject_cast<QScrollArea *>(breadcrumbBar->parentWidget())) {
-          scrollArea->ensureWidgetVisible(last);
-        }
-      }
-    }
-  });
 }
 
 void FileManagerWindow::goBack() {
   QDir dir(currentPath);
+  QString musicPath = "/userdisk/Music";
+  QString rootPath = QDir(musicPath).exists() ? musicPath : QDir::homePath();
+
+  // 检查是否已经在根目录
+  if (currentPath == rootPath) {
+    // 退无可退，关闭程序
+    close();
+    return;
+  }
+
   if (dir.cdUp()) {
-    QString musicPath = "/userdisk/Music";
-    QString rootPath = QDir(musicPath).exists() ? musicPath : QDir::homePath();
     QString newPath = dir.absolutePath();
     if (newPath.startsWith(rootPath)) {
       currentPath = newPath;
@@ -420,24 +397,32 @@ void FileManagerWindow::goBack() {
 
 void FileManagerWindow::onItemClicked(QListWidgetItem *item) {
   int row = fileList->row(item);
-  if (row < 0 || row >= fileInfoList.size())
+  // 第一项是面包屑导航，不处理文件操作
+  if (row == 0)
+    return;
+
+  // 调整行索引，因为第一项是面包屑导航
+  int fileIndex = row - 1;
+  if (fileIndex < 0 || fileIndex >= fileInfoList.size())
     return;
 
   if (isDeleteMode) {
-    showDeleteConfirmationDialog(row);
+    showDeleteConfirmationDialog(fileIndex);
     return;
   }
 
   if (isRenameMode) {
     // 重命名模式下，点击文件项开始重命名
-    renameIndex = row;
-    QFileInfo info = fileInfoList[row];
+    renameIndex = fileIndex;
+    QFileInfo info = fileInfoList[fileIndex];
 
     // 创建编辑框
     renameEdit = new QLineEdit(this);
     renameEdit->setText(info.fileName());
+    // 调整位置，考虑面包屑导航项的高度
     renameEdit->setGeometry(fileList->geometry().left() + 44,
-                            fileList->geometry().top() + row * 48 + 12,
+                            fileList->geometry().top() + 32 + (fileIndex * 48) +
+                                12,
                             fileList->width() - 72, 24);
     renameEdit->setStyleSheet(
         "background-color: #333333; color: white; border: 1px solid #555555; "
@@ -446,7 +431,8 @@ void FileManagerWindow::onItemClicked(QListWidgetItem *item) {
     renameEdit->setFocus();
 
     // 创建虚拟键盘，默认填充文件全名（包括后缀）
-    keyboard = new VirtualKeyboardWidget(info.fileName(), "请输入新的文件名", this);
+    keyboard =
+        new VirtualKeyboardWidget(info.fileName(), "请输入新的文件名", this);
     keyboard->move(0, height() - keyboard->height());
     keyboard->show();
 
@@ -484,7 +470,7 @@ void FileManagerWindow::onItemClicked(QListWidgetItem *item) {
     return;
   }
 
-  QFileInfo info = fileInfoList[row];
+  QFileInfo info = fileInfoList[fileIndex];
   if (info.isDir()) {
     loadFileItems(info.absoluteFilePath());
   } else {
@@ -585,8 +571,8 @@ void FileManagerWindow::finishRename() {
   if (QFile::rename(oldInfo.absoluteFilePath(), newPath)) {
     // 更新文件信息列表
     fileInfoList[renameIndex] = QFileInfo(newPath);
-    // 更新列表项显示
-    fileList->item(renameIndex)->setText(newName);
+    // 更新列表项显示，注意第一项是面包屑导航，所以索引要加1
+    fileList->item(renameIndex + 1)->setText(newName);
   }
 
   // 清理资源
@@ -762,9 +748,9 @@ void FileManagerWindow::confirmDelete() {
   }
 
   if (success) {
-    // 从列表中移除该项
+    // 从列表中移除该项，注意第一项是面包屑导航，所以索引要加1
     fileInfoList.removeAt(deleteIndex);
-    delete fileList->takeItem(deleteIndex);
+    delete fileList->takeItem(deleteIndex + 1);
   }
 
   // 关闭对话框并退出删除模式

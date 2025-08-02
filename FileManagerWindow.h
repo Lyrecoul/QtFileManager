@@ -1,15 +1,15 @@
 #ifndef FILEMANAGERWINDOW_H
 #define FILEMANAGERWINDOW_H
 
-#include <QWidget>
-#include <QListWidget>
 #include <QFileInfo>
 #include <QHBoxLayout>
-#include <QVBoxLayout>
-#include <QPushButton>
-#include <QToolButton>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
+#include <QPushButton>
+#include <QToolButton>
+#include <QVBoxLayout>
+#include <QWidget>
 
 #include "MyListWidget.h"
 #include "VirtualKeyboardWidget.h"
@@ -33,7 +33,7 @@ private slots:
 
 private:
   void loadFileItems(const QString &path);
-  void updateBreadcrumb();
+  void updateBreadcrumbForItem(QWidget *breadcrumbBar);
   QString formatDisplayPath(const QString &path);
   void showDeleteConfirmationDialog(int itemIndex);
   void hideDeleteConfirmationDialog();
@@ -43,11 +43,6 @@ private:
   QPushButton *btnSort;
   QPushButton *btnEdit;
   QPushButton *btnDelete;
-
-  // 面包屑路径导航栏
-  QWidget *breadcrumbBar;
-  QHBoxLayout *breadcrumbLayout;
-  QToolButton *btnClose;
 
   // 文件列表与路径数据
   MyListWidget *fileList;
