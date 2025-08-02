@@ -3,6 +3,7 @@
 #include "qnamespace.h"
 
 #include <QFileInfo>
+#include <QDir>
 #include <QVBoxLayout>
 #include <QScrollBar>
 #include <QFile>
@@ -12,6 +13,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QHBoxLayout>
+#include <QDebug>
 
 MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
     : QWidget(parent), currentPath(path), tocVisible(false) {
@@ -241,6 +243,45 @@ void MarkdownViewer::convertMarkdownToHtml(const QByteArray &markdown) {
     htmlContent.replace(QRegularExpression("<td>"),
         "<td style=\"border:1px solid #666666;padding:8px;text-align:left;min-width:40px;\">");
 
+    // 处理特殊的 Wiki 链接格式图片 ![[图片名]]
+    QRegularExpression wikiImageRegex("!\\[\\[([^\\]]+\\.(png|jpg|jpeg|gif|bmp|svg|webp))\\]\\]");
+    htmlContent.replace(wikiImageRegex, "<img src=\"\\1\" alt=\"\\1\">");
+
+    // 处理图片路径，将相对路径转换为绝对路径
+    QFileInfo fileInfo(currentPath);
+    QString dirPath = fileInfo.absolutePath();
+
+    // 匹配 <img> 标签中的 src 属性
+    QRegularExpression imgRegex("<img\\s+[^>]*src\\s*=\\s*['\"]([^'\"]+)['\"][^>]*>");
+    QRegularExpressionMatchIterator i = imgRegex.globalMatch(htmlContent);
+
+    while (i.hasNext()) {
+        QRegularExpressionMatch match = i.next();
+        QString imgTag = match.captured(0);  // 完整的 img 标签
+        QString srcPath = match.captured(1);  // src 属性值
+
+        // 如果是相对路径（不是以/开头的绝对路径，也不是http/https URL）
+        if (!srcPath.startsWith('/') && !srcPath.startsWith("http://") && !srcPath.startsWith("https://")) {
+            // 构建绝对路径
+            QDir dir(dirPath);
+            QString absolutePath = dir.absoluteFilePath(srcPath);
+            absolutePath = dir.cleanPath(absolutePath);
+
+            QFileInfo imgInfo(absolutePath);
+            qDebug() << "Image:" << absolutePath << "exists:" << imgInfo.exists();
+
+            // 替换 HTML 中的 src 属性
+            QString newImgTag = imgTag;
+            newImgTag.replace(srcPath, absolutePath);
+            htmlContent.replace(imgTag, newImgTag);
+        }
+    }
+
+    // 强制所有图片最大高度为 200px，宽度自适应
+    QRegularExpression imgTagRegex("<img([^>]*?)>");
+    htmlContent.replace(imgTagRegex, "<img\\1 height=\"200\" >");
+
+    qDebug() << htmlContent;
     textBrowser->setHtml(htmlContent);
 }
 
