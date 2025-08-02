@@ -31,7 +31,8 @@ void VirtualKeyboardWidget::initializeKeyboard(const QString &defaultText,
   // 顶部输入行
   inputLine = new QLineEdit(this);
   inputLine->setStyleSheet(
-      "font-size: 16px; background-color: #222; color: white; padding: 4px;");
+      "QLineEdit { font-size: 16px; background-color: #222; color: white; padding: 4px; border: none; border-radius: 6px; }"
+      "QLineEdit:focus { border: none; outline: none; }");
   inputLine->setReadOnly(false); // 让游标显示
   inputLine->setFocus();
 
