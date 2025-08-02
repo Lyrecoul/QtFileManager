@@ -435,8 +435,8 @@ void FileManagerWindow::onItemClicked(QListWidgetItem *item) {
     renameEdit->show();
     renameEdit->setFocus();
 
-    // 创建虚拟键盘
-    keyboard = new VirtualKeyboardWidget(this);
+    // 创建虚拟键盘，默认填充文件全名（包括后缀）
+    keyboard = new VirtualKeyboardWidget(info.fileName(), "请输入新的文件名", this);
     keyboard->move(0, height() - keyboard->height());
     keyboard->show();
 

@@ -6,6 +6,15 @@
 
 VirtualKeyboardWidget::VirtualKeyboardWidget(QWidget *parent)
     : QWidget(parent), currentPage(Letters) {
+  initializeKeyboard("", "");
+}
+
+VirtualKeyboardWidget::VirtualKeyboardWidget(const QString &defaultText, const QString &placeholderText, QWidget *parent)
+    : QWidget(parent), currentPage(Letters) {
+  initializeKeyboard(defaultText, placeholderText);
+}
+
+void VirtualKeyboardWidget::initializeKeyboard(const QString &defaultText, const QString &placeholderText) {
   setFixedSize(320, 170);
   setStyleSheet(R"(QWidget { background-color: #111; color: white; })");
 
@@ -21,6 +30,10 @@ VirtualKeyboardWidget::VirtualKeyboardWidget(QWidget *parent)
       "font-size: 16px; background-color: #222; color: white; padding: 4px;");
   inputLine->setReadOnly(false); // 让游标显示
   inputLine->setFocus();
+
+  // 设置默认文本和占位符
+  inputLine->setText(defaultText);
+  inputLine->setPlaceholderText(placeholderText);
 
   QPushButton *btnOk = new QPushButton("✓", this);
   QPushButton *btnClose = new QPushButton("✕", this);
@@ -213,4 +226,8 @@ QString VirtualKeyboardWidget::text() const { return inputLine->text(); }
 
 void VirtualKeyboardWidget::setText(const QString &text) {
   inputLine->setText(text);
+}
+
+void VirtualKeyboardWidget::setPlaceholderText(const QString &text) {
+  inputLine->setPlaceholderText(text);
 }

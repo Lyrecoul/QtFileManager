@@ -12,8 +12,10 @@ class VirtualKeyboardWidget : public QWidget {
   Q_OBJECT
 public:
   explicit VirtualKeyboardWidget(QWidget *parent = nullptr);
+  explicit VirtualKeyboardWidget(const QString &defaultText, const QString &placeholderText = "", QWidget *parent = nullptr);
   QString text() const;
   void setText(const QString &text);
+  void setPlaceholderText(const QString &text);
 
 signals:
   void textEntered(const QString &text);
@@ -34,6 +36,7 @@ private:
   QVector<QStringList> symbolKeys;
 
   void setupUI();
+  void initializeKeyboard(const QString &defaultText, const QString &placeholderText);
   void buildKeyboard();
   QPushButton *createButton(const QString &text);
 
