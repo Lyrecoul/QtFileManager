@@ -21,6 +21,9 @@ private:
     bool loadMarkdownFile();
     void convertMarkdownToHtml(const QByteArray &markdown);
     static void htmlOutputCallback(const MD_CHAR *html, MD_SIZE size, void *userdata);
+    void extractTableOfContents(const QByteArray &markdown);
+    void showTableOfContents();
+    void hideTableOfContents();
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -31,6 +34,11 @@ private:
     QByteArray htmlOutput;
 
     QPushButton *closeButton;
+    QPushButton *tocButton;
+    QWidget *tocPanel;
+    QTextBrowser *tocBrowser;
+    QStringList tocHeadings;
+    bool tocVisible;
 };
 
 #endif // MARKDOWNVIEWER_H
