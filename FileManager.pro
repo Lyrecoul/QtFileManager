@@ -12,7 +12,8 @@ SOURCES += \
     MarkdownViewer/md4c/md4c-html.c \
     MarkdownViewer/md4c/entity.c \
     CHighlighter.cpp \
-    JsonHighlighter.cpp
+    JsonHighlighter.cpp \
+    ToggleSwitch.cpp
 
 HEADERS += \
     FileManagerWindow.h \
@@ -26,7 +27,8 @@ HEADERS += \
     MarkdownViewer/md4c/md4c-html.h \
     MarkdownViewer/md4c/entity.h \
     CHighlighter.h \
-    JsonHighlighter.h
+    JsonHighlighter.h \
+    ToggleSwitch.h
 
 QMAKE_CFLAGS += -std=c99
 QMAKE_CXXFLAGS += -std=gnu++11

@@ -4,9 +4,13 @@
 #include "MarkdownViewer.h"
 #include "MyListWidget.h"
 #include "TextViewer.h"
+#include "ToggleSwitch.h"
 #include "VirtualKeyboardWidget.h"
 
+#include <QButtonGroup>
+#include <QCheckBox>
 #include <QCoreApplication>
+#include <QDialog>
 #include <QDir>
 #include <QFileIconProvider>
 #include <QHBoxLayout>
@@ -26,13 +30,18 @@
 
 FileManagerWindow::FileManagerWindow(QWidget *parent)
     : QWidget(parent, Qt::Tool | Qt::FramelessWindowHint),
-      sortMode(SortMode::Name), isRenameMode(false), renameEdit(nullptr),
+      sortMode(SortMode::Name), hideMatchingLrcFiles(false),
+      reverseSortOrder(false), isRenameMode(false), renameEdit(nullptr),
       keyboard(nullptr), renameIndex(-1), isDeleteMode(false), deleteIndex(-1),
       deleteDialog(nullptr), deleteConfirmButton(nullptr),
       deleteCancelButton(nullptr) {
 
   setWindowTitle("文件管理器");
   setAttribute(Qt::WA_DeleteOnClose, false);
+
+  // 加载设置
+  loadSettings();
+
   QFont font("Microsoft YaHei");
   setFont(font);
 
@@ -86,11 +95,9 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
   btnBack = createButton(":/icons/back.png");
   connect(btnBack, &QPushButton::clicked, this, &FileManagerWindow::goBack);
 
-  btnSort = createButton(":/icons/sort.png");
-  connect(btnSort, &QPushButton::clicked, this, [this]() {
-    sortMode = static_cast<SortMode>((static_cast<int>(sortMode) + 1) % 3);
-    loadFileItems(currentPath);
-  });
+  btnSettings = createButton(":/icons/settings.png");
+  connect(btnSettings, &QPushButton::clicked, this,
+          &FileManagerWindow::showSettingsMenu);
 
   btnEdit = createButton(":/icons/edit.png");
   btnDelete = createButton(":/icons/delete.png");
@@ -101,7 +108,7 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
           &FileManagerWindow::startDelete);
 
   sideLayout->addWidget(btnBack);
-  sideLayout->addWidget(btnSort);
+  sideLayout->addWidget(btnSettings);
   sideLayout->addWidget(btnEdit);
   sideLayout->addWidget(btnDelete);
   sideLayout->addStretch();
@@ -297,12 +304,48 @@ void FileManagerWindow::loadFileItems(const QString &path) {
     sortFlags |= QDir::Name;
   else if (sortMode == SortMode::Time)
     sortFlags |= QDir::Time;
+  else if (sortMode == SortMode::Size)
+    sortFlags |= QDir::Size;
   else if (sortMode == SortMode::Type)
     sortFlags |= QDir::Type;
+
+  // 如果启用反转排序，添加 Reversed 标志
+  if (reverseSortOrder) {
+    sortFlags |= QDir::Reversed;
+  }
 
   QFileInfoList entries =
       dir.entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot, sortFlags);
   QFileIconProvider iconProvider;
+
+  // 如果启用了隐藏与歌曲匹配的 lrc 文件功能，则过滤掉这些文件
+  if (hideMatchingLrcFiles) {
+    QFileInfoList filteredEntries;
+    QSet<QString> musicFiles;
+
+    // 首先收集所有音乐文件
+    for (const QFileInfo &info : entries) {
+      if (info.isFile()) {
+        QString suffix = info.suffix().toLower();
+        if (suffix == "mp3" || suffix == "flac" || suffix == "wav" ||
+            suffix == "aac" || suffix == "ogg") {
+          musicFiles.insert(info.completeBaseName());
+        }
+      }
+    }
+
+    // 然后过滤掉与音乐文件匹配的 lrc 文件
+    for (const QFileInfo &info : entries) {
+      if (info.isFile() && info.suffix().toLower() == "lrc") {
+        if (musicFiles.contains(info.completeBaseName())) {
+          continue; // 跳过与音乐文件匹配的 lrc 文件
+        }
+      }
+      filteredEntries.append(info);
+    }
+
+    entries = filteredEntries;
+  }
 
   if (entries.isEmpty()) {
     QLabel *emptyLabel = new QLabel("此文件夹为空");
@@ -769,4 +812,243 @@ void FileManagerWindow::confirmDelete() {
 void FileManagerWindow::cancelDelete() {
   hideDeleteConfirmationDialog();
   // 保持在删除模式，用户可以选择其他文件
+}
+
+void FileManagerWindow::showSettingsMenu() { showSettingsDialog(); }
+
+void FileManagerWindow::showSettingsDialog() {
+  QDialog dlg(this);
+  dlg.setFixedSize(320, 170);
+  dlg.setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint);
+  dlg.setStyleSheet("QDialog { background-color: #121212; border: none; "
+                    "border-radius: 16px; }");
+
+  QScrollArea *scrollArea = new QScrollArea(&dlg);
+  scrollArea->setWidgetResizable(true);
+  scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  scrollArea->setStyleSheet(R"(
+  QScrollArea { background: transparent; border: none; }
+  QScrollBar:vertical, QScrollBar:horizontal {
+    width: 0px;
+    height: 0px;
+    background: transparent;
+  }
+  QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+    background: transparent;
+    min-height: 0;
+    min-width: 0;
+  }
+)");
+
+  QScroller::grabGesture(scrollArea->viewport(), QScroller::TouchGesture);
+
+  QWidget *contentWidget = new QWidget;
+  QVBoxLayout *contentLayout = new QVBoxLayout(contentWidget);
+  contentLayout->setContentsMargins(8, 8, 8, 8);
+  contentLayout->setSpacing(12);
+
+  // 创建统一风格的标签
+  auto createLabel = [](const QString &text, const QString &style) {
+    QLabel *label = new QLabel(text);
+    label->setStyleSheet(style + " border: none;");
+    return label;
+  };
+
+  // 左上角圆形关闭按钮
+  QPushButton *closeBtn = new QPushButton("<");
+  closeBtn->setFixedSize(32, 32);
+  closeBtn->setStyleSheet(
+      "QPushButton { background-color: #2d2d2d; color: #aaaaaa; border: none; "
+      "border-radius: 16px; font-size: 16px; }"
+      "QPushButton:pressed { background-color: #444444; color: white; }");
+  QHBoxLayout *topLayout = new QHBoxLayout;
+  topLayout->addWidget(closeBtn);
+  topLayout->addStretch();
+  contentLayout->addLayout(topLayout);
+
+  // 排序方式标题
+  QLabel *sortTitle = createLabel(
+      "选择排序方式", "color: #ffffff; font-size: 14px; font-weight: bold;");
+  contentLayout->addWidget(sortTitle);
+
+  // 排序方式卡片
+  QWidget *sortCard = new QWidget;
+  sortCard->setStyleSheet("background-color: #1e1e1e; border-radius: 12px; "
+                          "border: 1px solid #2d2d2d;");
+  QVBoxLayout *sortLayout = new QVBoxLayout(sortCard);
+  sortLayout->setContentsMargins(12, 12, 12, 12);
+  sortLayout->setSpacing(8);
+
+  QPushButton *btnName = new QPushButton("文件名");
+  QPushButton *btnDate = new QPushButton("修改日期");
+  QPushButton *btnSize = new QPushButton("大小");
+  QPushButton *btnType = new QPushButton("类型");
+
+  QString btnStyle =
+      "QPushButton { color: #ffffff; background: #3a3a3a; border: none; "
+      "border-radius: 12px; font-size: 13px; padding: 6px 12px; }"
+      "QPushButton:checked { background: #ff2d3c; }";
+
+  btnName->setCheckable(true);
+  btnDate->setCheckable(true);
+  btnSize->setCheckable(true);
+  btnType->setCheckable(true);
+
+  btnName->setStyleSheet(btnStyle);
+  btnDate->setStyleSheet(btnStyle);
+  btnSize->setStyleSheet(btnStyle);
+  btnType->setStyleSheet(btnStyle);
+
+  QButtonGroup *sortGroup = new QButtonGroup(&dlg);
+  sortGroup->setExclusive(true);
+  sortGroup->addButton(btnName, 0);
+  sortGroup->addButton(btnDate, 1);
+  sortGroup->addButton(btnSize, 2);
+  sortGroup->addButton(btnType, 3);
+
+  switch (sortMode) {
+  case SortMode::Name:
+    btnName->setChecked(true);
+    break;
+  case SortMode::Time:
+    btnDate->setChecked(true);
+    break;
+  case SortMode::Size:
+    btnSize->setChecked(true);
+    break;
+  case SortMode::Type:
+    btnType->setChecked(true);
+    break;
+  }
+
+  QHBoxLayout *row1 = new QHBoxLayout;
+  row1->addWidget(btnName);
+  row1->addWidget(btnDate);
+  QHBoxLayout *row2 = new QHBoxLayout;
+  row2->addWidget(btnSize);
+  row2->addWidget(btnType);
+  sortLayout->addLayout(row1);
+  sortLayout->addLayout(row2);
+  contentLayout->addWidget(sortCard);
+
+  // 其他设置标题
+  QLabel *otherTitle = createLabel(
+      "其他设置", "color: #ffffff; font-size: 14px; font-weight: bold;");
+  contentLayout->addWidget(otherTitle);
+
+  // 开关控件
+  ToggleSwitch *reverseSwitch = new ToggleSwitch;
+  reverseSwitch->setChecked(reverseSortOrder);
+
+  ToggleSwitch *hideLrcSwitch = new ToggleSwitch;
+  hideLrcSwitch->setChecked(hideMatchingLrcFiles);
+
+  // 反转排列顺序卡片
+  QWidget *reverseCard = new QWidget;
+  reverseCard->setStyleSheet("background-color: #1e1e1e; border-radius: 12px; "
+                             "border: 1px solid #2d2d2d;");
+  QHBoxLayout *reverseLayout = new QHBoxLayout(reverseCard);
+  reverseLayout->setContentsMargins(16, 12, 16, 12);
+  QLabel *label1 =
+      createLabel("反转排列顺序", "color: #ffffff; font-size: 14px;");
+  reverseLayout->addWidget(label1);
+  reverseLayout->addStretch();
+  reverseLayout->addWidget(reverseSwitch);
+  contentLayout->addWidget(reverseCard);
+
+  // 自动隐藏歌词文件卡片
+  QWidget *hideCard = new QWidget;
+  hideCard->setStyleSheet("background-color: #1e1e1e; border-radius: 12px; "
+                          "border: 1px solid #2d2d2d;");
+  QVBoxLayout *hideLayout = new QVBoxLayout(hideCard);
+  hideLayout->setContentsMargins(16, 12, 16, 12);
+  QHBoxLayout *hideTopRow = new QHBoxLayout;
+  QLabel *label2 =
+      createLabel("自动隐藏歌词文件", "color: #ffffff; font-size: 14px;");
+  hideTopRow->addWidget(label2);
+  hideTopRow->addStretch();
+  hideTopRow->addWidget(hideLrcSwitch);
+  hideLayout->addLayout(hideTopRow);
+
+  QLabel *desc2 = createLabel("隐藏已匹配到歌曲的 lrc 歌词文件。",
+                              "color: #aaaaaa; font-size: 12px;");
+  desc2->setWordWrap(true);
+  hideLayout->addWidget(desc2);
+  contentLayout->addWidget(hideCard);
+
+  contentLayout->addStretch();
+  scrollArea->setWidget(contentWidget);
+
+  QVBoxLayout *mainLayout = new QVBoxLayout(&dlg);
+  mainLayout->setContentsMargins(0, 0, 0, 0);
+  mainLayout->addWidget(scrollArea);
+
+  QObject::connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
+  dlg.exec();
+
+  int sortId = sortGroup->checkedId();
+  switch (sortId) {
+  case 0:
+    sortMode = SortMode::Name;
+    break;
+  case 1:
+    sortMode = SortMode::Time;
+    break;
+  case 2:
+    sortMode = SortMode::Size;
+    break;
+  case 3:
+    sortMode = SortMode::Type;
+    break;
+  }
+
+  reverseSortOrder = reverseSwitch->isChecked();
+  hideMatchingLrcFiles = hideLrcSwitch->isChecked();
+  saveSettings();
+  loadFileItems(currentPath);
+}
+
+void FileManagerWindow::loadSettings() {
+  QSettings settings("FileManager", "Settings");
+
+  // 加载排序模式
+  int sortModeValue =
+      settings.value("SortMode", static_cast<int>(SortMode::Name)).toInt();
+  sortMode = static_cast<SortMode>(sortModeValue);
+
+  // 加载反转排序设置
+  reverseSortOrder = settings.value("ReverseSortOrder", false).toBool();
+
+  // 加载隐藏歌词文件设置
+  hideMatchingLrcFiles = settings.value("HideMatchingLrcFiles", false).toBool();
+}
+
+void FileManagerWindow::saveSettings() {
+  QSettings settings("FileManager", "Settings");
+
+  // 保存排序模式
+  settings.setValue("SortMode", static_cast<int>(sortMode));
+
+  // 保存反转排序设置
+  settings.setValue("ReverseSortOrder", reverseSortOrder);
+
+  // 保存隐藏歌词文件设置
+  settings.setValue("HideMatchingLrcFiles", hideMatchingLrcFiles);
+}
+
+bool FileManagerWindow::eventFilter(QObject *watched, QEvent *event) {
+  // 处理设置对话框的点击外部关闭事件
+  if (event->type() == QEvent::MouseButtonPress) {
+    QWidget *dialog = qobject_cast<QWidget *>(watched);
+    if (dialog && dialog->windowFlags() & Qt::Popup) {
+      QPoint pos =
+          dialog->mapFromGlobal(static_cast<QMouseEvent *>(event)->globalPos());
+      if (!dialog->rect().contains(pos)) {
+        dialog->close();
+        return true;
+      }
+    }
+  }
+  return QWidget::eventFilter(watched, event);
 }

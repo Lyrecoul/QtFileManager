@@ -7,6 +7,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
+#include <QSettings>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -14,7 +15,7 @@
 #include "MyListWidget.h"
 #include "VirtualKeyboardWidget.h"
 
-enum class SortMode { Name, Time, Type };
+enum class SortMode { Name, Time, Size, Type };
 
 class FileManagerWindow : public QWidget {
   Q_OBJECT
@@ -30,6 +31,7 @@ private slots:
   void startDelete();
   void confirmDelete();
   void cancelDelete();
+  void showSettingsMenu();
 
 private:
   void loadFileItems(const QString &path);
@@ -37,10 +39,14 @@ private:
   QString formatDisplayPath(const QString &path);
   void showDeleteConfirmationDialog(int itemIndex);
   void hideDeleteConfirmationDialog();
+  void showSettingsDialog();
+  void loadSettings();
+  void saveSettings();
+  bool eventFilter(QObject *watched, QEvent *event) override;
 
   // 左侧按钮栏
   QPushButton *btnBack;
-  QPushButton *btnSort;
+  QPushButton *btnSettings;
   QPushButton *btnEdit;
   QPushButton *btnDelete;
 
@@ -49,6 +55,12 @@ private:
   QList<QFileInfo> fileInfoList;
   QString currentPath;
   SortMode sortMode;
+  
+  // 隐藏设置
+  bool hideMatchingLrcFiles;
+  
+  // 排序设置
+  bool reverseSortOrder;
 
   // 重命名功能
   bool isRenameMode;

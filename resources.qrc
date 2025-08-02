@@ -18,5 +18,6 @@
     <file>icons/zip.png</file>
     <file>icons/unknown.png</file>
     <file>icons/code.png</file>
+    <file>icons/settings.png</file>
   </qresource>
 </RCC>
