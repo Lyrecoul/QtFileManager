@@ -9,12 +9,16 @@ VirtualKeyboardWidget::VirtualKeyboardWidget(QWidget *parent)
   initializeKeyboard("", "");
 }
 
-VirtualKeyboardWidget::VirtualKeyboardWidget(const QString &defaultText, const QString &placeholderText, QWidget *parent)
+VirtualKeyboardWidget::VirtualKeyboardWidget(const QString &defaultText,
+                                             const QString &placeholderText,
+                                             QWidget *parent)
     : QWidget(parent), currentPage(Letters) {
   initializeKeyboard(defaultText, placeholderText);
 }
 
-void VirtualKeyboardWidget::initializeKeyboard(const QString &defaultText, const QString &placeholderText) {
+void VirtualKeyboardWidget::initializeKeyboard(const QString &defaultText,
+                                               const QString &placeholderText) {
+  isUpperCase = false; // 默认小写模式
   setFixedSize(320, 170);
   setStyleSheet(R"(QWidget { background-color: #111; color: white; })");
 
@@ -69,6 +73,24 @@ void VirtualKeyboardWidget::initializeKeyboard(const QString &defaultText, const
   tabLayout->setSpacing(4);
 
   QStringList tabs = {"字母", "数字", "符号"};
+
+  // 创建大小写切换按钮
+  caseToggleBtn = new QPushButton("⇧");
+  caseToggleBtn->setCheckable(true);
+  caseToggleBtn->setStyleSheet(R"(
+    QPushButton {
+      background-color: #222; color: white;
+      padding: 6px; border-radius: 6px;
+      font-weight: bold;
+    }
+    QPushButton:checked {
+      background-color: #555;
+    })");
+
+  connect(caseToggleBtn, &QPushButton::clicked, this,
+          &VirtualKeyboardWidget::toggleCase);
+  tabLayout->addWidget(caseToggleBtn);
+
   for (int i = 0; i < tabs.size(); ++i) {
     QPushButton *tabBtn = new QPushButton(tabs[i]);
     tabBtn->setCheckable(true);
@@ -116,19 +138,34 @@ void VirtualKeyboardWidget::initializeKeyboard(const QString &defaultText, const
   setLayout(mainLayout);
 
   // 初始化按键内容
-  letterKeys = {{"A", "B", "C", "D", "E"}, {"F", "G", "H", "I", "J"},
-                {"K", "L", "M", "N", "O"}, {"P", "Q", "R", "S", "T"},
-                {"U", "V", "W", "X", "Y"}, {"Z", "←", "空格", "<", ">"}};
+  letterKeys = {{"←", "空格", "<", ">", "清空"},
+                {"a", "b", "c", "d", "e"},
+                {"f", "g", "h", "i", "j"},
+                {"k", "l", "m", "n", "o"},
+                {"p", "q", "r", "s", "t"},
+                {"u", "v", "w", "x", "y"},
+                {"z"}};
 
-  numberKeys = {{"1", "2", "3", "4", "5"},
+  letterKeysUpper = {{"←", "空格", "<", ">", "清空"},
+                     {"A", "B", "C", "D", "E"},
+                     {"F", "G", "H", "I", "J"},
+                     {"K", "L", "M", "N", "O"},
+                     {"P", "Q", "R", "S", "T"},
+                     {"U", "V", "W", "X", "Y"},
+                     {"Z"}};
+
+  numberKeys = {{"←", "空格", "<", ">", "清空"},
+                {"1", "2", "3", "4", "5"},
                 {"6", "7", "8", "9", "0"},
                 {"+", "-", "*", "/", "="},
-                {"←", "空格", "<", ">", "OK"}};
+                {"OK"}};
 
-  symbolKeys = {{"!", "@", "#", "$", "%"},
-                {"^", "&", "*", "(", ")"},
-                {"[", "]", "{", "}", "\\"},
-                {"←", "空格", "<", ">", "OK"}};
+  symbolKeys = {
+      {"←", "空格", "<", ">", "清空"},
+      {"!", "@", "#", "$", "%"},
+      {"^", "&", "*", "(", ")"},
+      {"[", "]", "{", "}", "\\"},
+  };
 
   QScroller::grabGesture(scrollArea->viewport(), QScroller::TouchGesture);
   scrollArea->viewport()->setAttribute(Qt::WA_AcceptTouchEvents);
@@ -154,7 +191,7 @@ void VirtualKeyboardWidget::buildKeyboard() {
   const QVector<QStringList> *keys = nullptr;
   switch (currentPage) {
   case Letters:
-    keys = &letterKeys;
+    keys = isUpperCase ? &letterKeysUpper : &letterKeys;
     break;
   case Numbers:
     keys = &numberKeys;
@@ -212,6 +249,8 @@ QPushButton *VirtualKeyboardWidget::createButton(const QString &text) {
     } else if (keyText == "OK") {
       emit textEntered(inputLine->text());
       this->hide();
+    } else if (keyText == "清空") {
+      inputLine->clear();
     } else {
       inputLine->insert(keyText);
     }
@@ -230,4 +269,13 @@ void VirtualKeyboardWidget::setText(const QString &text) {
 
 void VirtualKeyboardWidget::setPlaceholderText(const QString &text) {
   inputLine->setPlaceholderText(text);
+}
+
+void VirtualKeyboardWidget::toggleCase() {
+  isUpperCase = !isUpperCase;
+  caseToggleBtn->setChecked(isUpperCase);
+  // 如果当前在字母页面，立即更新键盘显示
+  if (currentPage == Letters) {
+    buildKeyboard();
+  }
 }

@@ -32,16 +32,22 @@ private:
   QScrollArea *scrollArea;
 
   QVector<QStringList> letterKeys;
+  QVector<QStringList> letterKeysUpper;  // 大写字母
   QVector<QStringList> numberKeys;
   QVector<QStringList> symbolKeys;
+
+  bool isUpperCase;  // 当前是否为大写模式
+  QPushButton *caseToggleBtn;  // 大小写切换按钮
+  QPushButton *clearButton;    // 清空按钮
 
   void setupUI();
   void initializeKeyboard(const QString &defaultText, const QString &placeholderText);
   void buildKeyboard();
   QPushButton *createButton(const QString &text);
+  void toggleCase();  // 切换大小写
 
   QVector<QVector<QPushButton *>> keyButtons; // 用于复用按钮
-  const int maxRows = 6;
+  const int maxRows = 7;
   const int maxCols = 5;
 };
 
