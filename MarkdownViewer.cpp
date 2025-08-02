@@ -112,14 +112,14 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
     closeButton = new QPushButton("✕", this);
     closeButton->setVisible(true);
     closeButton->setStyleSheet(buttonStyle());
-    closeButton->setFixedSize(40, 40);
+    closeButton->setFixedSize(30, 30);
     connect(closeButton, &QPushButton::clicked, this, &MarkdownViewer::close);
 
     // 创建目录按钮
     tocButton = new QPushButton("☰", this);
     tocButton->setVisible(true);
     tocButton->setStyleSheet(buttonStyle());
-    tocButton->setFixedSize(40, 40);
+    tocButton->setFixedSize(30, 30);
     connect(tocButton, &QPushButton::clicked, this, [this]() {
         if (tocVisible) {
             hideTableOfContents();
@@ -189,12 +189,12 @@ QString MarkdownViewer::buttonStyle() const {
     return R"(
         QPushButton {
             color: white;
-            font-size: 20px;
+            font-size: 16px;
             font-weight: bold;
             background: #353535;
-            border-radius: 20px;
-            width: 40px;
-            height: 40px;
+            border-radius: 15px;
+            width: 30px;
+            height: 30px;
             border: none;
             outline: none;
         }
