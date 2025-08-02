@@ -41,23 +41,6 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
         QTextBrowser h5 { color: #ffffff; font-size: 16px; font-weight: bold; }
         QTextBrowser h6 { color: #ffffff; font-size: 14px; font-weight: bold; }
         QTextBrowser p { color: #ffffff; font-size: 16px; }
-        /* 行内代码 */
-        code, .inline-code {
-            background-color: #333333;
-            color: #ffea00;
-            font-family: "Fira Mono", "Consolas", "monospace";
-            padding: 2px 4px;
-            font-size: 16px;
-        }
-        /* 代码块 */
-        pre, .code-block {
-            background-color: #222222;
-            color: #ffea00;
-            font-family: "Fira Mono", "Consolas", "monospace";
-            padding: 10px;
-            font-size: 16px;
-            margin: 8px 0;
-        }
         QTextBrowser a { color: #4da6ff; }
         QTextBrowser blockquote {
             border-left: 4px solid #666666;
@@ -244,11 +227,11 @@ void MarkdownViewer::convertMarkdownToHtml(const QByteArray &markdown) {
 
     // 行内代码
     htmlContent.replace(QRegularExpression("<code>([^<]+)</code>"),
-        "<code style=\"background-color:#333333;color:#ffea00;font-family:'Fira Mono','Consolas',monospace;padding:2px 4px;font-size:16px;\">\\1</code>");
+        "<code style=\"background-color:#333333;color:#ffea00;font-family: monospace;padding:2px 4px;font-size:16px;\">\\1</code>");
 
     // 代码块
     htmlContent.replace(QRegularExpression("<pre><code(.*?)>([\\s\\S]*?)</code></pre>"),
-        "<pre style=\"background-color:#222222;color:#ffea00;font-family:'Fira Mono','Consolas',monospace;padding:10px;font-size:16px;margin:8px 0;\">\\2</pre>");
+        "<pre style=\"background-color:#222222;color:#ffea00;font-family: monospace;padding:10px;font-size:16px;margin:8px 0;\">\\2</pre>");
 
     // 表格
     htmlContent.replace(QRegularExpression("<table>"),
