@@ -181,6 +181,11 @@ QIcon getMaterialIcon(const QFileInfo &info) {
     return QIcon(":/icons/folder.png");
   }
 
+  // 检查文件是否可执行
+  if (info.isExecutable()) {
+    return QIcon(":/icons/exe.png");
+  }
+
   QString suffix = info.suffix().toLower();
 
   // 音频文件
@@ -243,6 +248,13 @@ QIcon getMaterialIcon(const QFileInfo &info) {
       suffix == "java" || suffix == "js" || suffix == "html" ||
       suffix == "css") {
     return QIcon(":/icons/code.png");
+  }
+
+  // 可执行文件
+  if (suffix == "exe" || suffix == "sh" || suffix == "bat" || suffix == "msi" ||
+      suffix == "app" || suffix == "command" || suffix == "out" ||
+      suffix == "AppImage" || suffix == "bin" || suffix == "run") {
+    return QIcon(":/icons/exe.png");
   }
 
   // 默认图标

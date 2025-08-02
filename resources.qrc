@@ -19,5 +19,6 @@
     <file>icons/unknown.png</file>
     <file>icons/code.png</file>
     <file>icons/settings.png</file>
+    <file>icons/exe.png</file>
   </qresource>
 </RCC>
