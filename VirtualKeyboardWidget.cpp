@@ -62,6 +62,7 @@ void VirtualKeyboardWidget::initializeKeyboard(const QString &defaultText,
   topLayout->addWidget(btnOk);
   topLayout->addWidget(btnClose);
   topLayout->setContentsMargins(4, 4, 4, 0);
+  topLayout->setSpacing(5); // 输入框和按钮之间的间距
 
   // Tab 分组按钮
   QWidget *tabWidget = new QWidget(this);
@@ -125,7 +126,7 @@ void VirtualKeyboardWidget::initializeKeyboard(const QString &defaultText,
 
   keyboardWidget = new QWidget(this);
   keyLayout = new QVBoxLayout(keyboardWidget);
-  keyLayout->setContentsMargins(4, 4, 4, 4);
+  keyLayout->setContentsMargins(4, 0, 4, 4); // 减小顶部边距，消除间隙
   keyLayout->setSpacing(4);
 
   scrollArea->setWidget(keyboardWidget);
@@ -135,6 +136,8 @@ void VirtualKeyboardWidget::initializeKeyboard(const QString &defaultText,
   mainLayout->addWidget(tabWidget);
   mainLayout->addWidget(scrollArea);
   mainLayout->setContentsMargins(0, 0, 0, 0);
+  mainLayout->setSpacing(0); // 消除组件之间的间距
+  mainLayout->setStretch(2, 1); // 让键盘区域占据剩余空间
   setLayout(mainLayout);
 
   // 初始化按键内容
@@ -173,12 +176,17 @@ void VirtualKeyboardWidget::initializeKeyboard(const QString &defaultText,
 
   for (int row = 0; row < maxRows; ++row) {
     QHBoxLayout *rowLayout = new QHBoxLayout;
+    rowLayout->setSpacing(4); // 确保按钮之间有适当的间距
     QVector<QPushButton *> rowButtons;
     for (int col = 0; col < maxCols; ++col) {
       QPushButton *btn = createButton(""); // 空按钮
       btn->setVisible(false);              // 初始不可见
       rowLayout->addWidget(btn);
       rowButtons.append(btn);
+    }
+    // 设置行布局的拉伸因子，使按钮能够拉伸填充空间
+    for (int col = 0; col < maxCols; ++col) {
+      rowLayout->setStretch(col, 1);
     }
     keyLayout->addLayout(rowLayout);
     keyButtons.append(rowButtons);
@@ -223,7 +231,8 @@ void VirtualKeyboardWidget::buildKeyboard() {
 
 QPushButton *VirtualKeyboardWidget::createButton(const QString &text) {
   MyButton *btn = new MyButton(text); // 用自定义按钮替代
-  btn->setFixedSize(60, 36);
+  btn->setMinimumSize(60, 36); // 改为最小尺寸，允许按钮拉伸
+  btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding); // 设置大小策略为可扩展
   btn->setStyleSheet(R"(
     QPushButton {
       background-color: #333;
