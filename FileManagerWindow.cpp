@@ -225,7 +225,12 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
 
   setLayout(mainLayout);
 
-  currentPath = "/userdisk/Music";
+  QString musicPath = "/userdisk/Music";
+  if (QDir(musicPath).exists()) {
+    currentPath = musicPath;
+  } else {
+    currentPath = QDir::homePath();
+  }
   loadFileItems(currentPath);
 }
 
@@ -303,7 +308,8 @@ QIcon getMaterialIcon(const QFileInfo &info) {
 }
 
 void FileManagerWindow::loadFileItems(const QString &path) {
-  QString rootPath = "/userdisk/Music";
+  QString musicPath = "/userdisk/Music";
+  QString rootPath = QDir(musicPath).exists() ? musicPath : QDir::homePath();
   QString normalizedPath = QDir(path).absolutePath();
   currentPath = normalizedPath.startsWith(rootPath) ? normalizedPath : rootPath;
 
@@ -352,7 +358,8 @@ void FileManagerWindow::updateBreadcrumb() {
     delete child;
   }
 
-  QString basePath = "/userdisk/Music";
+  QString musicPath = "/userdisk/Music";
+  QString basePath = QDir(musicPath).exists() ? musicPath : QDir::homePath();
   QStringList parts =
       currentPath.mid(basePath.length()).split('/', Qt::SkipEmptyParts);
   QString pathAccumulator = basePath;
@@ -400,8 +407,10 @@ void FileManagerWindow::updateBreadcrumb() {
 void FileManagerWindow::goBack() {
   QDir dir(currentPath);
   if (dir.cdUp()) {
+    QString musicPath = "/userdisk/Music";
+    QString rootPath = QDir(musicPath).exists() ? musicPath : QDir::homePath();
     QString newPath = dir.absolutePath();
-    if (newPath.startsWith("/userdisk/Music")) {
+    if (newPath.startsWith(rootPath)) {
       currentPath = newPath;
       loadFileItems(currentPath);
     }
