@@ -267,8 +267,8 @@ void MarkdownViewer::convertMarkdownToHtml(const QByteArray &markdown) {
             QString absolutePath = dir.absoluteFilePath(srcPath);
             absolutePath = dir.cleanPath(absolutePath);
 
-            QFileInfo imgInfo(absolutePath);
-            qDebug() << "Image:" << absolutePath << "exists:" << imgInfo.exists();
+            // QFileInfo imgInfo(absolutePath);
+            // qDebug() << "Image:" << absolutePath << "exists:" << imgInfo.exists();
 
             // 替换 HTML 中的 src 属性
             QString newImgTag = imgTag;
@@ -281,7 +281,7 @@ void MarkdownViewer::convertMarkdownToHtml(const QByteArray &markdown) {
     QRegularExpression imgTagRegex("<img([^>]*?)>");
     htmlContent.replace(imgTagRegex, "<img\\1 height=\"200\" >");
 
-    qDebug() << htmlContent;
+    // qDebug() << htmlContent;
     textBrowser->setHtml(htmlContent);
 }
 
