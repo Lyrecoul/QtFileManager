@@ -40,6 +40,7 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
     QWidget {
         background-color: #000000;
         color: #ffffff;
+        font-family: "Microsoft YaHei";
         font-size: 13px;
     }
     QPushButton {
