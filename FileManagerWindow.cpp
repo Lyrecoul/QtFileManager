@@ -69,14 +69,14 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
 
   // 左侧按钮栏
   QVBoxLayout *sideLayout = new QVBoxLayout();
-  sideLayout->setSpacing(6);
-  sideLayout->setContentsMargins(4, 4, 4, 4);
+  sideLayout->setSpacing(8);
+  sideLayout->setContentsMargins(6, 6, 6, 6);
 
   auto createButton = [&](const QString &iconPath) {
     QPushButton *btn = new QPushButton();
     btn->setIcon(QIcon(iconPath));
     btn->setIconSize(QSize(20, 20));
-    btn->setFixedSize(32, 32);
+    btn->setFixedSize(34, 34);
     btn->setStyleSheet(R"(
       QPushButton {
         background-color: #242424;
@@ -115,7 +115,7 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
 
   QWidget *sideWidget = new QWidget();
   sideWidget->setLayout(sideLayout);
-  sideWidget->setFixedWidth(40);
+  sideWidget->setFixedWidth(48);
 
   // =============== 文件列表 ===============
   fileList = new MyListWidget();
