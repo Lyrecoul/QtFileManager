@@ -538,9 +538,7 @@ void FileManagerWindow::onItemClicked(QListWidgetItem *item) {
       viewer->move(0, 0);
       viewer->show();
     } else if (mime.startsWith("video/") || mime.startsWith("audio/")) {
-      QProcess::startDetached(QCoreApplication::applicationDirPath() +
-                                  "/VideoPlayer",
-                              {info.absoluteFilePath()});
+      QProcess::startDetached("/userdisk/VideoPlayer", {info.absoluteFilePath()});
     } else if (mime == "text/markdown" || info.suffix().toLower() == "md") {
       auto *viewer = new MarkdownViewer(info.absoluteFilePath(), this);
       viewer->resize(320, 170);

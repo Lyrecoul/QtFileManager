@@ -33,7 +33,18 @@ HEADERS += \
 QMAKE_CFLAGS += -std=c99
 QMAKE_CXXFLAGS += -std=gnu++11
 
+INCLUDEPATH += $$PWD/include
+
 LIBS += -L/home/lyrecoul/PenDevelopment/lib \
-        -ldrm -lpcre -lgbm -lwayland-client -lwayland-server -lffi
+        -ldrm -lpcre -lgbm -lwayland-client -lwayland-server -lffi \
+        -L$$PWD/libs -ldobby -ldl
 
 RESOURCES += resources.qrc
+
+TARGET = FileManager
+TEMPLATE = lib
+
+CONFIG += shared
+CONFIG += plugin
+
+QMAKE_CXXFLAGS += -fPIC
