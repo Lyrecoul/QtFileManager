@@ -519,6 +519,9 @@ void FileManagerWindow::onItemClicked(QListWidgetItem *item) {
           delegate->setShowEditIcon(false);
           fileList->update();
         }
+        
+        // 重新启用删除按钮
+        btnDelete->setEnabled(true);
       }
     });
 
