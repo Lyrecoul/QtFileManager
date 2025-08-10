@@ -14,7 +14,7 @@ RequestShowPage_t orig_request_show_page = nullptr;
 // 自定义的 hook 函数
 void my_request_show_page(void *this_ptr, int page, bool flag) {
   if (page == 9) {
-    printf("[+] 检测到页面9，启动主程序...\n");
+    printf("[+] 检测到页面 9，启动主程序...\n");
 
     // 创建并显示主程序窗口
     static FileManagerWindow *mainWindow = nullptr;
@@ -62,7 +62,7 @@ void my_request_show_page(void *this_ptr, int page, bool flag) {
 }
 
 // 安装 hook
-void install_hook() {
+void install_f_hook() {
   void *target_addr = (void *)0x5d726c;
 
   if (!target_addr) {
@@ -81,4 +81,7 @@ void install_hook() {
   }
 }
 
-__attribute__((constructor)) static void init() { install_hook(); }
+__attribute__((constructor)) static void initFileManager() { 
+  printf("[+] 初始化 FileManager hook...\n");
+  install_f_hook(); 
+}
