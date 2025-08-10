@@ -32,37 +32,42 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
             background-color: #000000;
             color: #ffffff;
             border: none;
-            padding: 10px 42px 10px 10px;
-            font-size: 18px;
+            padding: 8px 42px 8px 8px;
+            font-size: 14px;
+            font-weight: bold;
             font-family: "Microsoft YaHei", "微软雅黑", "Noto Sans SC", "Arial", sans-serif;
+            letter-spacing: -0.5px;
         }
-        QTextBrowser h1 { color: #ffffff; font-size: 28px; font-weight: bold; }
-        QTextBrowser h2 { color: #ffffff; font-size: 24px; font-weight: bold; }
-        QTextBrowser h3 { color: #ffffff; font-size: 20px; font-weight: bold; }
-        QTextBrowser h4 { color: #ffffff; font-size: 18px; font-weight: bold; }
-        QTextBrowser h5 { color: #ffffff; font-size: 16px; font-weight: bold; }
-        QTextBrowser h6 { color: #ffffff; font-size: 14px; font-weight: bold; }
-        QTextBrowser p { color: #ffffff; font-size: 16px; }
-        QTextBrowser a { color: #4da6ff; }
+        QTextBrowser h1 { color: #ffffff; font-size: 20px; font-weight: bold; margin-top: 8px; margin-bottom: 4px; }
+        QTextBrowser h2 { color: #ffffff; font-size: 18px; font-weight: bold; margin-top: 6px; margin-bottom: 3px; }
+        QTextBrowser h3 { color: #ffffff; font-size: 16px; font-weight: bold; margin-top: 5px; margin-bottom: 2px; }
+        QTextBrowser h4 { color: #ffffff; font-size: 15px; font-weight: bold; margin-top: 4px; margin-bottom: 2px; }
+        QTextBrowser h5 { color: #ffffff; font-size: 14px; font-weight: bold; margin-top: 3px; margin-bottom: 1px; }
+        QTextBrowser h6 { color: #ffffff; font-size: 13px; font-weight: bold; margin-top: 2px; margin-bottom: 1px; }
+        QTextBrowser p { color: #ffffff; font-size: 14px; font-weight: bold; margin: 2px 0; }
+        QTextBrowser a { color: #4da6ff; font-weight: bold; }
         QTextBrowser blockquote {
             border-left: 4px solid #666666;
             padding-left: 10px;
             margin-left: 0;
             color: #cccccc;
+            font-size: 14px;
         }
-        QTextBrowser ul, QTextBrowser ol { margin-left: 20px; }
-        QTextBrowser li { margin-bottom: 5px; }
+        QTextBrowser ul, QTextBrowser ol { margin-left: 15px; }
+        QTextBrowser li { margin-bottom: 3px; font-size: 14px; font-weight: bold; }
         QTextBrowser table {
             border-collapse: collapse;
             width: 100%;
-            margin: 10px 0;
-            font-size: 16px;
+            margin: 8px 0;
+            font-size: 14px;
         }
         QTextBrowser th, QTextBrowser td {
             border: 1px solid #666666;
-            padding: 8px;
+            padding: 6px;
             text-align: left;
             min-width: 40px;
+            font-size: 14px;
+            font-weight: bold;
         }
         QTextBrowser th { background-color: #333333; }
         /* 目录面板样式 */
@@ -75,11 +80,14 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
             background-color: transparent;
             border: none;
             padding: 5px;
-            font-size: 14px;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: -0.5px;
         }
         #tocBrowser a {
             color: #cccccc;
             text-decoration: none;
+            font-weight: bold;
         }
         #tocBrowser a:hover {
             color: #ffffff;
@@ -229,11 +237,11 @@ void MarkdownViewer::convertMarkdownToHtml(const QByteArray &markdown) {
 
     // 行内代码
     htmlContent.replace(QRegularExpression("<code>([^<]+)</code>"),
-        "<code style=\"background-color:#333333;color:#ffea00;font-family: monospace;padding:2px 4px;font-size:16px;\">\\1</code>");
+        "<code style=\"background-color:#333333;color:#ffea00;font-family: \"Microsoft YaHei\", \"微软雅黑\", \"Noto Sans SC\", monospace;padding:2px 4px;font-size:13px;\">\\1</code>");
 
     // 代码块
     htmlContent.replace(QRegularExpression("<pre><code(.*?)>([\\s\\S]*?)</code></pre>"),
-        "<pre style=\"background-color:#222222;color:#ffea00;font-family: monospace;padding:10px;font-size:16px;margin:8px 0;\">\\2</pre>");
+        "<pre style=\"background-color:#222222;color:#ffea00;font-family: \"Microsoft YaHei\", \"微软雅黑\", \"Noto Sans SC\", monospace;padding:8px;font-size:13px;margin:6px 0;\">\\2</pre>");
 
     // 表格
     htmlContent.replace(QRegularExpression("<table>"),
