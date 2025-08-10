@@ -820,6 +820,9 @@ void FileManagerWindow::confirmDelete() {
     delegate->setShowDeleteIcon(false);
     fileList->update();
   }
+
+  // 重新启用重命名按钮
+  btnEdit->setEnabled(true);
 }
 
 void FileManagerWindow::cancelDelete() {
