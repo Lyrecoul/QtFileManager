@@ -31,7 +31,8 @@ void VirtualKeyboardWidget::initializeKeyboard(const QString &defaultText,
   // 顶部输入行
   inputLine = new QLineEdit(this);
   inputLine->setStyleSheet(
-      "QLineEdit { font-size: 16px; background-color: #222; color: white; padding: 4px; border: none; border-radius: 6px; }"
+      "QLineEdit { font-size: 16px; background-color: #222; color: white; "
+      "padding: 4px; border: none; border-radius: 6px; }"
       "QLineEdit:focus { border: none; outline: none; }");
   inputLine->setReadOnly(false); // 让游标显示
   inputLine->setFocus();
@@ -137,7 +138,7 @@ void VirtualKeyboardWidget::initializeKeyboard(const QString &defaultText,
   mainLayout->addWidget(tabWidget);
   mainLayout->addWidget(scrollArea);
   mainLayout->setContentsMargins(0, 0, 0, 0);
-  mainLayout->setSpacing(0); // 消除组件之间的间距
+  mainLayout->setSpacing(0);    // 消除组件之间的间距
   mainLayout->setStretch(2, 1); // 让键盘区域占据剩余空间
   setLayout(mainLayout);
 
@@ -148,7 +149,7 @@ void VirtualKeyboardWidget::initializeKeyboard(const QString &defaultText,
                 {"k", "l", "m", "n", "o"},
                 {"p", "q", "r", "s", "t"},
                 {"u", "v", "w", "x", "y"},
-                {"z"}};
+                {"z", "OK"}};
 
   letterKeysUpper = {{"←", "空格", "<", ">", "清空"},
                      {"A", "B", "C", "D", "E"},
@@ -156,7 +157,7 @@ void VirtualKeyboardWidget::initializeKeyboard(const QString &defaultText,
                      {"K", "L", "M", "N", "O"},
                      {"P", "Q", "R", "S", "T"},
                      {"U", "V", "W", "X", "Y"},
-                     {"Z"}};
+                     {"Z","OK"}};
 
   numberKeys = {{"←", "空格", "<", ">", "清空"},
                 {"1", "2", "3", "4", "5"},
@@ -164,12 +165,10 @@ void VirtualKeyboardWidget::initializeKeyboard(const QString &defaultText,
                 {"+", "-", "*", "/", "="},
                 {"OK"}};
 
-  symbolKeys = {
-      {"←", "空格", "<", ">", "清空"},
-      {"!", "@", "#", "$", "%"},
-      {"^", "&", "*", "(", ")"},
-      {"[", "]", "{", "}", "\\"},
-  };
+  symbolKeys = {{"←", "空格", "<", ">", "清空"}, {"!", "@", "#", "$", "%"},
+                {"^", "&&", "*", "(", ")"},      {"[", "]", "{", "}", "\\"},
+                {"-", "_", "+", "=", "|"},       {":", ";", "\"", "'", "`"},
+                {"~", ",", ".", "?", "/"}};
 
   QScroller::grabGesture(scrollArea->viewport(), QScroller::TouchGesture);
   scrollArea->viewport()->setAttribute(Qt::WA_AcceptTouchEvents);
@@ -232,8 +231,9 @@ void VirtualKeyboardWidget::buildKeyboard() {
 
 QPushButton *VirtualKeyboardWidget::createButton(const QString &text) {
   MyButton *btn = new MyButton(text); // 用自定义按钮替代
-  btn->setMinimumSize(60, 36); // 改为最小尺寸，允许按钮拉伸
-  btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding); // 设置大小策略为可扩展
+  btn->setMinimumSize(60, 36);        // 改为最小尺寸，允许按钮拉伸
+  btn->setSizePolicy(QSizePolicy::Expanding,
+                     QSizePolicy::Expanding); // 设置大小策略为可扩展
   btn->setStyleSheet(R"(
     QPushButton {
       background-color: #333;
