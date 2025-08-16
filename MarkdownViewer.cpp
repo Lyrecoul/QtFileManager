@@ -1,6 +1,7 @@
 #include "MarkdownViewer.h"
 #include "MarkdownViewer/md4c/md4c-html.h"
 #include "qnamespace.h"
+#include <QStringBuilder>  // 新增：字符串拼接优化头文件
 
 #include <QFileInfo>
 #include <QDir>
@@ -11,8 +12,6 @@
 #include <QResizeEvent>
 #include <QScroller>
 #include <QPushButton>
-#include <QRegularExpression>
-#include <QHBoxLayout>
 #include <QDebug>
 
 MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
@@ -22,7 +21,7 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
     setAttribute(Qt::WA_TranslucentBackground);
     setAttribute(Qt::WA_DeleteOnClose);
 
-    // 样式表
+    // 样式表（保持不变）
     setStyleSheet(R"(
         QWidget {
             background-color: #000000;
@@ -94,21 +93,21 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
         }
     )");
 
-    // 创建文本浏览器
+    // 创建文本浏览器（保持不变）
     textBrowser = new QTextBrowser(this);
     textBrowser->setFrameStyle(QFrame::NoFrame);
     textBrowser->setOpenLinks(false);
     textBrowser->setOpenExternalLinks(true);
     textBrowser->setTextInteractionFlags(Qt::NoTextInteraction);
 
-    // 创建关闭按钮
+    // 创建关闭按钮（保持不变）
     closeButton = new QPushButton("✕", this);
     closeButton->setVisible(true);
     closeButton->setStyleSheet(buttonStyle());
     closeButton->setFixedSize(30, 30);
     connect(closeButton, &QPushButton::clicked, this, &MarkdownViewer::close);
 
-    // 创建目录按钮
+    // 创建目录按钮（保持不变）
     tocButton = new QPushButton("☰", this);
     tocButton->setVisible(true);
     tocButton->setStyleSheet(buttonStyle());
@@ -121,12 +120,12 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
         }
     });
 
-    // 创建目录面板
+    // 创建目录面板（保持不变）
     tocPanel = new QWidget(this);
     tocPanel->setObjectName("tocPanel");
     tocPanel->setVisible(false);
 
-    // 创建目录浏览器
+    // 创建目录浏览器（保持不变）
     tocBrowser = new QTextBrowser(tocPanel);
     tocBrowser->setObjectName("tocBrowser");
     tocBrowser->setFrameStyle(QFrame::NoFrame);
@@ -134,24 +133,24 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
     tocBrowser->setOpenExternalLinks(false);
     tocBrowser->setTextInteractionFlags(Qt::NoTextInteraction);
 
-    // 目录面板布局
+    // 目录面板布局（保持不变）
     QVBoxLayout *tocLayout = new QVBoxLayout(tocPanel);
     tocLayout->setContentsMargins(5, 5, 5, 5);
     tocLayout->addWidget(tocBrowser);
 
-    // 主布局
+    // 主布局（保持不变）
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
     mainLayout->addWidget(textBrowser);
 
-    // 禁用滚动条
+    // 禁用滚动条（保持不变）
     textBrowser->verticalScrollBar()->setStyleSheet("QScrollBar { width: 0px; }");
     textBrowser->horizontalScrollBar()->setStyleSheet("QScrollBar { height: 0px; }");
     tocBrowser->verticalScrollBar()->setStyleSheet("QScrollBar { width: 0px; }");
     tocBrowser->horizontalScrollBar()->setStyleSheet("QScrollBar { height: 0px; }");
 
-    // 启用触摸滑动支持
+    // 启用触摸滑动支持（保持不变）
     QScroller *scroller = QScroller::scroller(textBrowser);
     QScroller::grabGesture(textBrowser, QScroller::TouchGesture);
 
@@ -172,6 +171,21 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
     tocScroller->setScrollerProperties(properties);
 
     resize(320, 170);
+
+    // 新增：初始化正则表达式（预编译）
+    codeInlineRegex = QRegularExpression("<code>([^<]+)</code>");
+    codeBlockRegex = QRegularExpression("<pre><code(.*?)>([\\s\\S]*?)</code></pre>");
+    tableRegex = QRegularExpression("<table>");
+    thRegex = QRegularExpression("<th>");
+    tdRegex = QRegularExpression("<td>");
+    wikiImageRegex = QRegularExpression("!\\[\\[([^\\]]+\\.(png|jpg|jpeg|gif|bmp|svg|webp))\\]\\]");
+    imgSrcRegex = QRegularExpression("<img\\s+[^>]*src\\s*=\\s*['\"]([^'\"]+)['\"][^>]*>");
+    imgTagRegex = QRegularExpression("<img([^>]*?)>");
+
+    // 新增：初始化 resize 延迟定时器
+    resizeTimer.setSingleShot(true);
+    resizeTimer.setInterval(50);  // 50ms 延迟，避免频繁触发
+    connect(&resizeTimer, &QTimer::timeout, this, &MarkdownViewer::updateUIOnResize);
 
     if (!loadMarkdownFile()) {
         textBrowser->setHtml("<p style='color: red;'>无法加载 Markdown 文件</p>");
@@ -208,8 +222,16 @@ bool MarkdownViewer::loadMarkdownFile() {
         return false;
     }
 
-    QByteArray markdownData = file.readAll();
+    // 优化：分块读取（替代 readAll()，适合大文件）
+    QByteArray markdownData;
+    while (!file.atEnd()) {
+        markdownData.append(file.read(4096));  // 每次读取 4KB
+    }
     file.close();
+
+    // 新增：缓存当前目录路径
+    QFileInfo fileInfo(currentPath);
+    currentDirPath = fileInfo.absolutePath();
 
     extractTableOfContents(markdownData);
     convertMarkdownToHtml(markdownData);
@@ -235,61 +257,44 @@ void MarkdownViewer::convertMarkdownToHtml(const QByteArray &markdown) {
 
     QString htmlContent = QString::fromUtf8(htmlOutput);
 
-    // 行内代码
-    htmlContent.replace(QRegularExpression("<code>([^<]+)</code>"),
+    // 优化：使用预编译的正则表达式
+    htmlContent.replace(codeInlineRegex,
         "<code style=\"background-color:#333333;color:#ffea00;font-family: \"Microsoft YaHei\", \"微软雅黑\", \"Noto Sans SC\", monospace;padding:2px 4px;font-size:13px;\">\\1</code>");
 
-    // 代码块
-    htmlContent.replace(QRegularExpression("<pre><code(.*?)>([\\s\\S]*?)</code></pre>"),
+    htmlContent.replace(codeBlockRegex,
         "<pre style=\"background-color:#222222;color:#ffea00;font-family: \"Microsoft YaHei\", \"微软雅黑\", \"Noto Sans SC\", monospace;padding:8px;font-size:13px;margin:6px 0;\">\\2</pre>");
 
-    // 表格
-    htmlContent.replace(QRegularExpression("<table>"),
+    htmlContent.replace(tableRegex,
         "<table style=\"border-collapse:collapse;width:100%;margin:10px 0;font-size:16px;\">");
-    htmlContent.replace(QRegularExpression("<th>"),
+    htmlContent.replace(thRegex,
         "<th style=\"border:1px solid #666666;padding:8px;text-align:left;min-width:40px;background-color:#333333;\">");
-    htmlContent.replace(QRegularExpression("<td>"),
+    htmlContent.replace(tdRegex,
         "<td style=\"border:1px solid #666666;padding:8px;text-align:left;min-width:40px;\">");
 
-    // 处理特殊的 Wiki 链接格式图片 ![[图片名]]
-    QRegularExpression wikiImageRegex("!\\[\\[([^\\]]+\\.(png|jpg|jpeg|gif|bmp|svg|webp))\\]\\]");
+    // 处理 Wiki 图片格式
     htmlContent.replace(wikiImageRegex, "<img src=\"\\1\" alt=\"\\1\">");
 
-    // 处理图片路径，将相对路径转换为绝对路径
-    QFileInfo fileInfo(currentPath);
-    QString dirPath = fileInfo.absolutePath();
-
-    // 匹配 <img> 标签中的 src 属性
-    QRegularExpression imgRegex("<img\\s+[^>]*src\\s*=\\s*['\"]([^'\"]+)['\"][^>]*>");
-    QRegularExpressionMatchIterator i = imgRegex.globalMatch(htmlContent);
-
+    // 优化：使用缓存的 currentDirPath 处理图片路径
+    QRegularExpressionMatchIterator i = imgSrcRegex.globalMatch(htmlContent);
     while (i.hasNext()) {
         QRegularExpressionMatch match = i.next();
-        QString imgTag = match.captured(0);  // 完整的 img 标签
-        QString srcPath = match.captured(1);  // src 属性值
+        QString imgTag = match.captured(0);
+        QString srcPath = match.captured(1);
 
-        // 如果是相对路径（不是以/开头的绝对路径，也不是http/https URL）
         if (!srcPath.startsWith('/') && !srcPath.startsWith("http://") && !srcPath.startsWith("https://")) {
-            // 构建绝对路径
-            QDir dir(dirPath);
+            QDir dir(currentDirPath);  // 直接使用缓存的目录
             QString absolutePath = dir.absoluteFilePath(srcPath);
             absolutePath = dir.cleanPath(absolutePath);
 
-            // QFileInfo imgInfo(absolutePath);
-            // qDebug() << "Image:" << absolutePath << "exists:" << imgInfo.exists();
-
-            // 替换 HTML 中的 src 属性
             QString newImgTag = imgTag;
             newImgTag.replace(srcPath, absolutePath);
             htmlContent.replace(imgTag, newImgTag);
         }
     }
 
-    // 强制所有图片最大高度为 200px，宽度自适应
-    QRegularExpression imgTagRegex("<img([^>]*?)>");
+    // 强制图片高度
     htmlContent.replace(imgTagRegex, "<img\\1 height=\"200\" >");
 
-    // qDebug() << htmlContent;
     textBrowser->setHtml(htmlContent);
 }
 
@@ -302,16 +307,13 @@ void MarkdownViewer::extractTableOfContents(const QByteArray &markdown) {
     tocHeadings.clear();
     QString markdownText = QString::fromUtf8(markdown);
 
-    // 使用正则表达式匹配所有标题（# 标题）
     QRegularExpression re("^(#{1,6})\\s+(.+)$", QRegularExpression::MultilineOption);
     QRegularExpressionMatchIterator i = re.globalMatch(markdownText);
 
     while (i.hasNext()) {
         QRegularExpressionMatch match = i.next();
-        QString level = match.captured(1);  // 获取标题级别（#的数量）
-        QString title = match.captured(2);  // 获取标题文本
-
-        // 存储标题级别和标题文本
+        QString level = match.captured(1);
+        QString title = match.captured(2);
         tocHeadings.append(QString::number(level.length()) + "|" + title);
     }
 }
@@ -321,37 +323,31 @@ void MarkdownViewer::showTableOfContents() {
         return;
     }
 
-    // 生成目录HTML
-    QString tocHtml = "<div style='padding: 5px;'><h3 style='margin-top: 0px;'>目录</h3>";
+    // 优化：使用QStringBuilder（%操作符）加速字符串拼接
+    QString tocHtml = QStringLiteral("<div style='padding: 5px;'><h3 style='margin-top: 0px;'>目录</h3>");
 
     for (const QString &heading : tocHeadings) {
         QStringList parts = heading.split("|");
         if (parts.size() >= 2) {
             int level = parts[0].toInt();
             QString title = parts[1];
-
-            // 根据标题级别添加缩进
             QString indent = QString(" ").repeated((level - 1) * 2);
 
-            // 添加到目录HTML
-            tocHtml += "<div style='margin: 3px 0;'>" + indent + 
-                      "<a href='#" + QString(title).replace(" ", "_") + 
-                      "' style='color: #cccccc; text-decoration: none;'>" + 
-                      title + "</a></div>";
+            // 用%替代+，减少内存分配
+            tocHtml = tocHtml % "<div style='margin: 3px 0;'" % indent % 
+                      "<a href='#" % QString(title).replace(" ", "_") % 
+                      "' style='color: #cccccc; text-decoration: none;'>" % 
+                      title % "</a></div>";
         }
     }
 
-    tocHtml += "</div>";
-
-    // 设置目录内容并显示面板
+    tocHtml = tocHtml % "</div>";
     tocBrowser->setHtml(tocHtml);
     tocPanel->setVisible(true);
     tocVisible = true;
 
-    // 更新目录面板位置和大小
-    int panelWidth = qMin(static_cast<int>(width() * 0.8), 250);
-    int panelHeight = qMin(static_cast<int>(height() * 0.7), 300);
-    tocPanel->setGeometry(5, 5, panelWidth, panelHeight);
+    // 触发一次 UI 更新
+    updateUIOnResize();
 }
 
 void MarkdownViewer::hideTableOfContents() {
@@ -359,8 +355,14 @@ void MarkdownViewer::hideTableOfContents() {
     tocVisible = false;
 }
 
+// 优化：延迟处理 resize 事件
 void MarkdownViewer::resizeEvent(QResizeEvent *event) {
     QWidget::resizeEvent(event);
+    resizeTimer.start();  // 每次 resize 触发定时器，延迟执行更新
+}
+
+// 新增：实际执行 UI 调整的函数
+void MarkdownViewer::updateUIOnResize() {
     if (closeButton) {
         closeButton->move(width() - closeButton->width() - 5, 5);
     }
@@ -368,9 +370,7 @@ void MarkdownViewer::resizeEvent(QResizeEvent *event) {
         tocButton->move(width() - tocButton->width() - 5, closeButton->y() + closeButton->height() + 5);
     }
     if (tocPanel && tocVisible) {
-        // 目录面板宽度为屏幕宽度的80%，最大宽度为250
         int panelWidth = qMin(static_cast<int>(width() * 0.8), 250);
-        // 目录面板高度为屏幕高度的70%，最大高度为300
         int panelHeight = qMin(static_cast<int>(height() * 0.7), 300);
         tocPanel->setGeometry(5, 5, panelWidth, panelHeight);
     }

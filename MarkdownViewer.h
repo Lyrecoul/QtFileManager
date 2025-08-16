@@ -7,6 +7,7 @@
 #include <QTextBrowser>
 #include <QByteArray>
 #include <QFile>
+#include <QRegularExpression>  // 新增：正则表达式头文件
 
 #include "MarkdownViewer/md4c/md4c.h"
 
@@ -24,12 +25,14 @@ private:
     void extractTableOfContents(const QByteArray &markdown);
     void showTableOfContents();
     void hideTableOfContents();
+    void updateUIOnResize();  // 新增：延迟更新 UI 的函数
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
 
 private:
     QString currentPath;
+    QString currentDirPath;  // 新增：缓存当前目录路径
     QTextBrowser *textBrowser;
     QByteArray htmlOutput;
 
@@ -39,6 +42,17 @@ private:
     QTextBrowser *tocBrowser;
     QStringList tocHeadings;
     bool tocVisible;
+    QTimer resizeTimer;  // 新增：延迟处理 resize 事件的定时器
+
+    // 新增：预编译的正则表达式
+    QRegularExpression codeInlineRegex;
+    QRegularExpression codeBlockRegex;
+    QRegularExpression tableRegex;
+    QRegularExpression thRegex;
+    QRegularExpression tdRegex;
+    QRegularExpression wikiImageRegex;
+    QRegularExpression imgSrcRegex;
+    QRegularExpression imgTagRegex;
 };
 
 #endif // MARKDOWNVIEWER_H
