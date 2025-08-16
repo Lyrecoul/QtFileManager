@@ -34,7 +34,7 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
             border: none;
             padding: 8px 42px 8px 8px;
             font-size: 14px;
-            font-weight: bold;
+            font-weight: normal;
             font-family: "Microsoft YaHei", "微软雅黑", "Noto Sans SC", "Arial", sans-serif;
             letter-spacing: -0.5px;
         }
@@ -44,8 +44,8 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
         QTextBrowser h4 { color: #ffffff; font-size: 15px; font-weight: bold; margin-top: 4px; margin-bottom: 2px; }
         QTextBrowser h5 { color: #ffffff; font-size: 14px; font-weight: bold; margin-top: 3px; margin-bottom: 1px; }
         QTextBrowser h6 { color: #ffffff; font-size: 13px; font-weight: bold; margin-top: 2px; margin-bottom: 1px; }
-        QTextBrowser p { color: #ffffff; font-size: 14px; font-weight: bold; margin: 2px 0; }
-        QTextBrowser a { color: #4da6ff; font-weight: bold; }
+        QTextBrowser p { color: #ffffff; font-size: 14px; font-weight: normal; margin: 2px 0; }
+        QTextBrowser a { color: #4da6ff; font-weight: normal; }
         QTextBrowser blockquote {
             border-left: 4px solid #666666;
             padding-left: 10px;
@@ -54,7 +54,7 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
             font-size: 14px;
         }
         QTextBrowser ul, QTextBrowser ol { margin-left: 15px; }
-        QTextBrowser li { margin-bottom: 3px; font-size: 14px; font-weight: bold; }
+        QTextBrowser li { margin-bottom: 3px; font-size: 14px; font-weight: normal; }
         QTextBrowser table {
             border-collapse: collapse;
             width: 100%;
@@ -67,9 +67,9 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
             text-align: left;
             min-width: 40px;
             font-size: 14px;
-            font-weight: bold;
+            font-weight: normal;
         }
-        QTextBrowser th { background-color: #333333; }
+        QTextBrowser th { background-color: #333333; font-weight: bold; }
         /* 目录面板样式 */
         #tocPanel {
             background-color: rgba(30, 30, 30, 240);
@@ -81,13 +81,13 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
             border: none;
             padding: 5px;
             font-size: 12px;
-            font-weight: bold;
+            font-weight: normal;
             letter-spacing: -0.5px;
         }
         #tocBrowser a {
             color: #cccccc;
             text-decoration: none;
-            font-weight: bold;
+            font-weight: normal;
         }
         #tocBrowser a:hover {
             color: #ffffff;
