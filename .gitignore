@@ -73,5 +73,6 @@ CMakeLists.txt.user*
 *.exe
 
 build
+build_pc_debug
 .cache
 moc_*
