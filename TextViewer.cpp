@@ -16,6 +16,7 @@
 #include <QShowEvent>
 #include <QTextBrowser>
 #include <QVBoxLayout>
+#include <QSettings>  // 新增：用于保存和恢复阅读进度
 
 TextViewer::TextViewer(const QString &path, QWidget *parent)
     : QWidget(parent), currentPath(path) {
@@ -100,6 +101,9 @@ TextViewer::TextViewer(const QString &path, QWidget *parent)
   if (!loadTextFile()) {
     textBrowser->setHtml("<p style='color: red;'>无法加载文本文件</p>");
   }
+
+  // 恢复阅读进度
+  restoreReadingProgress();
 }
 
 QString TextViewer::buttonStyle() const {
@@ -155,4 +159,36 @@ void TextViewer::resizeEvent(QResizeEvent *event) {
   if (closeButton) {
     closeButton->move(width() - closeButton->width() - 5, 5);
   }
+}
+
+// 获取进度文件路径
+QString TextViewer::getProgressFilePath() {
+  QFileInfo fileInfo(currentPath);
+  QString dirPath = fileInfo.absolutePath();
+  QString fileName = "." + fileInfo.completeBaseName() + "_progress.ini";
+  return dirPath + "/" + fileName;
+}
+
+// 保存阅读进度
+void TextViewer::saveReadingProgress() {
+  QSettings settings(getProgressFilePath(), QSettings::IniFormat);
+  settings.setValue("scrollPosition", textBrowser->verticalScrollBar()->value());
+  settings.sync();
+}
+
+// 恢复阅读进度
+void TextViewer::restoreReadingProgress() {
+  QSettings settings(getProgressFilePath(), QSettings::IniFormat);
+  int scrollPosition = settings.value("scrollPosition", 0).toInt();
+
+  // 等待UI完全加载后再设置滚动位置
+  QTimer::singleShot(100, [this, scrollPosition]() {
+    textBrowser->verticalScrollBar()->setValue(scrollPosition);
+  });
+}
+
+// 关闭事件处理，保存阅读进度
+void TextViewer::closeEvent(QCloseEvent *event) {
+  saveReadingProgress();
+  QWidget::closeEvent(event);
 }

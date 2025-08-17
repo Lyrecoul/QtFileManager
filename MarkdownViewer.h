@@ -8,6 +8,7 @@
 #include <QByteArray>
 #include <QFile>
 #include <QRegularExpression>  // 新增：正则表达式头文件
+#include <QCloseEvent>  // 新增：关闭事件头文件
 
 #include "MarkdownViewer/md4c/md4c.h"
 
@@ -29,9 +30,13 @@ private:
     void hideTableOfContents();
     void updateUIOnResize();  // 新增：延迟更新 UI 的函数
     void performAutoScroll(); // 新增：执行自动滚动
+    void saveReadingProgress(); // 新增：保存阅读进度
+    void restoreReadingProgress(); // 新增：恢复阅读进度
+    QString getProgressFilePath(); // 新增：获取进度文件路径
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
+    void closeEvent(QCloseEvent *event) override; // 新增：关闭事件处理
 
 private:
     QString currentPath;

@@ -13,6 +13,8 @@
 #include <QScroller>
 #include <QStringBuilder>
 #include <QVBoxLayout>
+#include <QSettings>  // 新增：用于保存和恢复阅读进度
+#include <QCloseEvent>  // 新增：关闭事件处理
 
 MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
     : QWidget(parent), currentPath(path), tocVisible(false) {
@@ -252,6 +254,9 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
   if (!loadMarkdownFile()) {
     textBrowser->setHtml("<p style='color: red;'>无法加载 Markdown 文件</p>");
   }
+
+  // 恢复阅读进度
+  restoreReadingProgress();
 }
 
 QString MarkdownViewer::buttonStyle() const {
@@ -599,4 +604,36 @@ void MarkdownViewer::performAutoScroll() {
   // 根据速度设置滚动步长
   int step = autoScrollSpeed;
   scrollBar->setValue(currentValue + step);
+}
+
+// 获取进度文件路径
+QString MarkdownViewer::getProgressFilePath() {
+  QFileInfo fileInfo(currentPath);
+  QString dirPath = fileInfo.absolutePath();
+  QString fileName = "." + fileInfo.completeBaseName() + "_progress.ini";
+  return dirPath + "/" + fileName;
+}
+
+// 保存阅读进度
+void MarkdownViewer::saveReadingProgress() {
+  QSettings settings(getProgressFilePath(), QSettings::IniFormat);
+  settings.setValue("scrollPosition", textBrowser->verticalScrollBar()->value());
+  settings.sync();
+}
+
+// 恢复阅读进度
+void MarkdownViewer::restoreReadingProgress() {
+  QSettings settings(getProgressFilePath(), QSettings::IniFormat);
+  int scrollPosition = settings.value("scrollPosition", 0).toInt();
+
+  // 等待UI完全加载后再设置滚动位置
+  QTimer::singleShot(100, [this, scrollPosition]() {
+    textBrowser->verticalScrollBar()->setValue(scrollPosition);
+  });
+}
+
+// 关闭事件处理，保存阅读进度
+void MarkdownViewer::closeEvent(QCloseEvent *event) {
+  saveReadingProgress();
+  QWidget::closeEvent(event);
 }
