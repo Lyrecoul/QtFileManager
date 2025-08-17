@@ -34,7 +34,7 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
             padding: 8px 42px 8px 8px;
             font-size: 14px;
             font-weight: normal;
-            font-family: "Microsoft YaHei", "微软雅黑", "Noto Sans SC", "Arial", sans-serif;
+            font-family: "OPPOSans", "Noto Color Emoji", sans-serif;
             letter-spacing: -0.5px;
         }
         QTextBrowser h1 { color: #ffffff; font-size: 20px; font-weight: bold; margin-top: 8px; margin-bottom: 4px; }
@@ -414,13 +414,13 @@ void MarkdownViewer::convertMarkdownToHtml(const QByteArray &markdown) {
   htmlContent.replace(
       codeInlineRegex,
       "<code style=\"background-color:#333333;color:#ffea00;font-family: "
-      "\"Microsoft YaHei\", \"微软雅黑\", \"Noto Sans SC\", "
+      "\"Microsoft YaHei\", \"Noto Sans CJK\", \"Noto Sans SC\", "
       "monospace;padding:2px 4px;font-size:13px;\">\\1</code>");
 
   htmlContent.replace(
       codeBlockRegex,
       "<pre style=\"background-color:#222222;color:#ffea00;font-family: "
-      "\"Microsoft YaHei\", \"微软雅黑\", \"Noto Sans SC\", "
+      "\"Microsoft YaHei\", \"Noto Sans CJK\", \"Noto Sans SC\", "
       "monospace;padding:8px;font-size:13px;margin:6px 0;\">\\2</pre>");
 
   // 优化表格样式
