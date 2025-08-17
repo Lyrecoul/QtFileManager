@@ -20,5 +20,8 @@
     <file>icons/code.png</file>
     <file>icons/settings.png</file>
     <file>icons/exe.png</file>
+    <file>icons/pause.png</file>
+    <file>icons/play.png</file>
+    <file>icons/menu.png</file>
   </qresource>
 </RCC>

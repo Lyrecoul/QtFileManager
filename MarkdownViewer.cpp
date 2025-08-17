@@ -103,23 +103,48 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
   // 仅允许链接交互，禁止文本选择
   textBrowser->setTextInteractionFlags(Qt::NoTextInteraction);
 
-  // 创建关闭按钮（保持不变）
-  closeButton = new QPushButton("✕", this);
+  // 创建关闭按钮
+  closeButton = new QPushButton(this);
   closeButton->setVisible(true);
-  closeButton->setStyleSheet(buttonStyle());
+  closeButton->setIcon(QIcon(":/icons/close.png"));
   closeButton->setFixedSize(30, 30);
+  closeButton->setIconSize(QSize(20, 20));
+  closeButton->setStyleSheet(buttonStyle());
   connect(closeButton, &QPushButton::clicked, this, &MarkdownViewer::close);
 
-  // 创建目录按钮（保持不变）
-  tocButton = new QPushButton("☰", this);
+  // 创建目录按钮
+  tocButton = new QPushButton(this);
   tocButton->setVisible(true);
-  tocButton->setStyleSheet(buttonStyle());
+  tocButton->setIcon(QIcon(":/icons/menu.png"));
   tocButton->setFixedSize(30, 30);
+  tocButton->setIconSize(QSize(20, 20));
+  tocButton->setStyleSheet(buttonStyle());
   connect(tocButton, &QPushButton::clicked, this, [this]() {
     if (tocVisible) {
       hideTableOfContents();
     } else {
       showTableOfContents();
+    }
+  });
+
+  // 创建自动滚动按钮
+  autoScrollButton = new QPushButton(this);
+  autoScrollButton->setVisible(true);
+  autoScrollButton->setIcon(QIcon(":/icons/play.png"));
+  autoScrollButton->setFixedSize(30, 30);
+  autoScrollButton->setIconSize(QSize(20, 20));
+  autoScrollButton->setToolTip("自动滚动");
+  autoScrollButton->setStyleSheet(buttonStyle());
+  isAutoScrolling = false;
+  connect(autoScrollButton, &QPushButton::clicked, this, [this]() {
+    if (isAutoScrolling) {
+      stopAutoScroll();
+      autoScrollButton->setIcon(QIcon(":/icons/play.png"));
+      isAutoScrolling = false;
+    } else {
+      startAutoScroll(2);
+      autoScrollButton->setIcon(QIcon(":/icons/pause.png"));
+      isAutoScrolling = true;
     }
   });
 
@@ -217,6 +242,12 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
   resizeTimer.setInterval(50);
   connect(&resizeTimer, &QTimer::timeout, this,
           &MarkdownViewer::updateUIOnResize);
+
+  // 初始化自动滚动定时器
+  autoScrollTimer.setSingleShot(false);
+  autoScrollSpeed = 50; // 默认滚动速度
+  connect(&autoScrollTimer, &QTimer::timeout, this,
+          &MarkdownViewer::performAutoScroll);
 
   if (!loadMarkdownFile()) {
     textBrowser->setHtml("<p style='color: red;'>无法加载 Markdown 文件</p>");
@@ -537,9 +568,35 @@ void MarkdownViewer::updateUIOnResize() {
   // 调整按钮位置（根据实际需求补充）
   closeButton->move(width() - 40, 10);
   tocButton->move(width() - 40, 50);
+  autoScrollButton->move(width() - 40, 90);
 }
 
 void MarkdownViewer::resizeEvent(QResizeEvent *event) {
   QWidget::resizeEvent(event);
   resizeTimer.start(); // 延迟处理 resize 事件
+}
+
+void MarkdownViewer::startAutoScroll(int speed) {
+  autoScrollSpeed = speed;
+  autoScrollTimer.start(50); // 每50毫秒触发一次滚动
+}
+
+void MarkdownViewer::stopAutoScroll() {
+  autoScrollTimer.stop();
+}
+
+void MarkdownViewer::performAutoScroll() {
+  QScrollBar *scrollBar = textBrowser->verticalScrollBar();
+  int currentValue = scrollBar->value();
+  int maxValue = scrollBar->maximum();
+
+  // 如果当前值已经是最大值，停止滚动
+  if (currentValue >= maxValue) {
+    stopAutoScroll();
+    return;
+  }
+
+  // 根据速度设置滚动步长
+  int step = autoScrollSpeed;
+  scrollBar->setValue(currentValue + step);
 }
