@@ -1,3 +1,4 @@
+// ImageViewer.h
 #ifndef IMAGEVIEWER_H
 #define IMAGEVIEWER_H
 
@@ -8,6 +9,13 @@
 #include <QPointF>
 #include <QGestureEvent>
 #include <QShowEvent>
+#include <QDir>
+#include <QFileInfoList>
+#include <QCache>
+#include <QScrollArea>
+#include <QListWidget>
+#include <QFutureWatcher>
+#include <QMutex>
 
 class ImageViewer : public QWidget {
     Q_OBJECT
@@ -19,34 +27,41 @@ protected:
     void showEvent(QShowEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
-
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
-
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
     bool event(QEvent *event) override;
     bool gestureEvent(QGestureEvent *event);
+    bool eventFilter(QObject *obj, QEvent *event) override;
 
 private slots:
     void onZoomIn();
     void onZoomOut();
     void showZoomButtons();
     void hideZoomButtons();
+    void onThumbnailClicked(QListWidgetItem* item);
+    void loadThumbnailsInBackground();
+    void onThumbnailLoaded(const QString& path, const QPixmap& pixmap);
 
 private:
     void updateImageDisplay();
     void rotateImage();
     QString buttonStyle() const;
+    void initThumbnailView();
+    void scanImageFiles();
+    QPixmap generateThumbnail(const QString& path);
+    void showThumbnailMenu();
+    void hideThumbnailMenu();
+    void switchToImage(int index);
 
 private:
     QString currentPath;
-
     QPixmap originalPixmap;
     QPixmap rotatedPixmap;
 
     double scaleFactor = 1.0;
     int rotationAngle = 0;
-
     QPointF offset;
     QPoint lastMousePos;
     bool dragging = false;
@@ -55,7 +70,18 @@ private:
     QPushButton *zoomOutButton = nullptr;
     QPushButton *rotateButton = nullptr;
     QPushButton *closeButton = nullptr;
+    QPushButton *thumbnailButton = nullptr;
     QTimer zoomButtonHideTimer;
+
+    // 缩略图相关
+    QFileInfoList imageFiles;
+    int currentImageIndex = -1;
+    QListWidget* thumbnailList;
+    QScrollArea* thumbnailScrollArea;
+    QCache<QString, QPixmap> thumbnailCache;
+    QFutureWatcher<void>* thumbnailWatcher;
+    QMutex thumbnailMutex;
+    bool thumbnailsVisible = false;
 };
 
 #endif // IMAGEVIEWER_H

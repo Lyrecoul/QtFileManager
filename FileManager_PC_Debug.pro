@@ -1,7 +1,7 @@
 # PC 调试专用的项目文件
 # 这个项目文件针对 PC 环境进行了优化，移除了 ARM 架构相关的代码
 
-QT += core gui widgets multimedia multimediawidgets
+QT += core gui widgets multimedia multimediawidgets concurrent
 
 # 添加调试信息
 CONFIG += release

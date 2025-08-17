@@ -1,4 +1,4 @@
-QT += core gui widgets multimedia multimediawidgets
+QT += core gui widgets multimedia multimediawidgets concurrent
 
 SOURCES += \
     main.cpp \
