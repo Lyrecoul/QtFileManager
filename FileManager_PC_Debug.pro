@@ -4,7 +4,7 @@
 QT += core gui widgets multimedia multimediawidgets
 
 # 添加调试信息
-CONFIG += debug
+CONFIG += release
 CONFIG += c++11
 
 # 输出为可执行文件而非共享库
@@ -58,7 +58,7 @@ INCLUDEPATH += $$PWD/include
 RESOURCES += resources.qrc
 
 # PC 调试特定设置
-QMAKE_CXXFLAGS_DEBUG += -O0 -g3 -Wall -Wextra
+QMAKE_CXXFLAGS_DEBUG += -O2 -g3 -Wall -Wextra
 QMAKE_LFLAGS_DEBUG +=
 
 # 输出目录
