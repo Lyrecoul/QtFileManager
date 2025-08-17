@@ -1,5 +1,6 @@
 #include "MarkdownViewer.h"
 #include "MarkdownViewer/md4c/md4c-html.h"
+#include "qglobal.h"
 #include "qnamespace.h"
 #include <QStringBuilder>  // 新增：字符串拼接优化头文件
 
@@ -238,6 +239,92 @@ bool MarkdownViewer::loadMarkdownFile() {
     return true;
 }
 
+/* 工具函数 */
+
+// 定义常量，便于维护
+const int MAX_SEARCH_LEVELS = 10;
+
+// 辅助函数：解码URL编码的路径
+QString decodePath(const QString& encodedPath) {
+    return QUrl::fromPercentEncoding(encodedPath.toUtf8());
+}
+
+// 辅助函数：构建清理后的绝对路径
+QString buildCleanAbsolutePath(const QDir& baseDir, const QString& relativePath) {
+    QString absolutePath = baseDir.absoluteFilePath(relativePath);
+    qDebug() << "Absolute Path: " << absolutePath;
+    return baseDir.cleanPath(absolutePath);
+}
+
+// 辅助函数：替换图片标签中的路径
+void replaceImageTag(QString& htmlContent, const QString& originalTag, 
+                    const QString& originalSrc, const QString& newSrc) {
+    QString newImgTag = originalTag;
+    newImgTag.replace(originalSrc, newSrc);
+    htmlContent.replace(originalTag, newImgTag);
+}
+
+// 处理Obsidian风格的绝对路径（以/开头）
+void handleObsidianAbsolutePath(QString& htmlContent, const QString& imgTag, 
+                              const QString& srcPath, const QDir& currentDir) {
+    QString pathWithoutSlash = srcPath.mid(1); // 去掉开头的'/'
+    QStringList pathParts = pathWithoutSlash.split('/', Qt::SkipEmptyParts);
+
+    if (pathParts.isEmpty()) {
+        // 路径为空或只有"/"
+        QString absolutePath = buildCleanAbsolutePath(currentDir, pathWithoutSlash);
+        absolutePath = decodePath(absolutePath);
+        replaceImageTag(htmlContent, imgTag, srcPath, absolutePath);
+        return;
+    }
+
+    // 处理路径部分
+    QString targetDirName = decodePath(pathParts.first());
+    QDir searchDir(currentDir);
+    QString baseDirPath;
+    bool foundTargetDir = false;
+
+    // 向上查找目标目录
+    for (int i = 0; i < MAX_SEARCH_LEVELS; ++i) {
+        if (searchDir.dirName() == targetDirName) {
+            baseDirPath = searchDir.absolutePath();
+            foundTargetDir = true;
+            break;
+        }
+        if (!searchDir.cdUp()) break; // 到达文件系统根目录
+    }
+
+    // 构建新路径
+    QString absolutePath;
+    if (foundTargetDir) {
+        // 计算剩余路径
+        int targetDirPos = pathWithoutSlash.indexOf(pathParts.first());
+        QString remainingPath;
+        if (targetDirPos >= 0) {
+            remainingPath = pathWithoutSlash.mid(targetDirPos + pathParts.first().length() + 1);
+        } else {
+            remainingPath = pathWithoutSlash;
+        }
+        
+        absolutePath = buildCleanAbsolutePath(QDir(baseDirPath), remainingPath);
+    } else {
+        // 未找到目标目录，使用当前目录作为基准
+        absolutePath = buildCleanAbsolutePath(currentDir, pathWithoutSlash);
+    }
+
+    absolutePath = decodePath(absolutePath);
+    replaceImageTag(htmlContent, imgTag, srcPath, absolutePath);
+}
+
+// 处理普通相对路径
+void handleRelativePath(QString& htmlContent, const QString& imgTag, 
+                       const QString& srcPath, const QDir& currentDir) {
+    QString absolutePath = buildCleanAbsolutePath(currentDir, srcPath);
+    absolutePath = decodePath(absolutePath);
+    replaceImageTag(htmlContent, imgTag, srcPath, absolutePath);
+}
+/* 工具函数结束 */
+
 void MarkdownViewer::convertMarkdownToHtml(const QByteArray &markdown) {
     htmlOutput.clear();
 
@@ -281,14 +368,17 @@ void MarkdownViewer::convertMarkdownToHtml(const QByteArray &markdown) {
         QString imgTag = match.captured(0);
         QString srcPath = match.captured(1);
 
-        if (!srcPath.startsWith('/') && !srcPath.startsWith("http://") && !srcPath.startsWith("https://")) {
-            QDir dir(currentDirPath);  // 直接使用缓存的目录
-            QString absolutePath = dir.absoluteFilePath(srcPath);
-            absolutePath = dir.cleanPath(absolutePath);
+        // 只处理非HTTP/HTTPS的路径
+        if (!srcPath.startsWith("http://") && !srcPath.startsWith("https://")) {
+            QDir currentDir(currentDirPath);
 
-            QString newImgTag = imgTag;
-            newImgTag.replace(srcPath, absolutePath);
-            htmlContent.replace(imgTag, newImgTag);
+            if (srcPath.startsWith('/')) {
+                // 处理Obsidian绝对路径
+                handleObsidianAbsolutePath(htmlContent, imgTag, srcPath, currentDir);
+            } else {
+                // 处理普通相对路径
+                handleRelativePath(htmlContent, imgTag, srcPath, currentDir);
+            }
         }
     }
 
