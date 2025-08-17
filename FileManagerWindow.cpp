@@ -30,7 +30,7 @@
 
 FileManagerWindow::FileManagerWindow(QWidget *parent)
     : QWidget(parent, Qt::Tool | Qt::FramelessWindowHint),
-      sortMode(SortMode::Name), hideMatchingLrcFiles(false),
+      sortMode(SortMode::Name), hideMatchingLrcFiles(false), showHiddenFiles(false),
       reverseSortOrder(false), isRenameMode(false), renameEdit(nullptr),
       keyboard(nullptr), renameIndex(-1), isDeleteMode(false), deleteIndex(-1),
       deleteDialog(nullptr), deleteConfirmButton(nullptr),
@@ -98,6 +98,16 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
   btnSettings = createButton(":/icons/settings.png");
   connect(btnSettings, &QPushButton::clicked, this,
           &FileManagerWindow::showSettingsMenu);
+  
+  // 初始化长按计时器
+  settingsLongPressTimer = new QTimer(this);
+  settingsLongPressTimer->setSingleShot(true);
+  settingsLongPressTimer->setInterval(3000); // 3秒
+  connect(settingsLongPressTimer, &QTimer::timeout, this,
+          &FileManagerWindow::onSettingsLongPress);
+          
+  // 设置按钮按下和释放事件
+  btnSettings->installEventFilter(this);
 
   btnEdit = createButton(":/icons/edit.png");
   btnDelete = createButton(":/icons/delete.png");
@@ -326,8 +336,11 @@ void FileManagerWindow::loadFileItems(const QString &path) {
     sortFlags |= QDir::Reversed;
   }
 
-  QFileInfoList entries =
-      dir.entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot, sortFlags);
+  QDir::Filters filters = QDir::AllEntries | QDir::NoDotAndDotDot;
+  if (showHiddenFiles) {
+    filters |= QDir::Hidden;
+  }
+  QFileInfoList entries = dir.entryInfoList(filters, sortFlags);
   QFileIconProvider iconProvider;
 
   // 如果启用了隐藏与歌曲匹配的 lrc 文件功能，则过滤掉这些文件
@@ -832,6 +845,13 @@ void FileManagerWindow::cancelDelete() {
 
 void FileManagerWindow::showSettingsMenu() { showSettingsDialog(); }
 
+void FileManagerWindow::onSettingsLongPress() {
+  // 切换显示/隐藏隐藏文件夹
+  showHiddenFiles = !showHiddenFiles;
+  saveSettings();
+  loadFileItems(currentPath);
+}
+
 void FileManagerWindow::showSettingsDialog() {
   QDialog dlg(this);
   dlg.setFixedSize(320, 170);
@@ -1038,6 +1058,9 @@ void FileManagerWindow::loadSettings() {
 
   // 加载隐藏歌词文件设置
   hideMatchingLrcFiles = settings.value("HideMatchingLrcFiles", false).toBool();
+  
+  // 加载显示隐藏文件设置
+  showHiddenFiles = settings.value("ShowHiddenFiles", false).toBool();
 }
 
 void FileManagerWindow::saveSettings() {
@@ -1051,9 +1074,21 @@ void FileManagerWindow::saveSettings() {
 
   // 保存隐藏歌词文件设置
   settings.setValue("HideMatchingLrcFiles", hideMatchingLrcFiles);
+  
+  // 保存显示隐藏文件设置
+  settings.setValue("ShowHiddenFiles", showHiddenFiles);
 }
 
 bool FileManagerWindow::eventFilter(QObject *watched, QEvent *event) {
+  // 处理设置按钮的长按事件
+  if (watched == btnSettings) {
+    if (event->type() == QEvent::MouseButtonPress) {
+      settingsLongPressTimer->start();
+    } else if (event->type() == QEvent::MouseButtonRelease) {
+      settingsLongPressTimer->stop();
+    }
+  }
+  
   // 处理设置对话框的点击外部关闭事件
   if (event->type() == QEvent::MouseButtonPress) {
     QWidget *dialog = qobject_cast<QWidget *>(watched);

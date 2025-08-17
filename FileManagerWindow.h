@@ -8,6 +8,7 @@
 #include <QListWidget>
 #include <QPushButton>
 #include <QSettings>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -32,6 +33,7 @@ private slots:
   void confirmDelete();
   void cancelDelete();
   void showSettingsMenu();
+  void onSettingsLongPress();
 
 private:
   void loadFileItems(const QString &path);
@@ -58,6 +60,8 @@ private:
   
   // 隐藏设置
   bool hideMatchingLrcFiles;
+  bool showHiddenFiles;
+  QTimer *settingsLongPressTimer;
   
   // 排序设置
   bool reverseSortOrder;
