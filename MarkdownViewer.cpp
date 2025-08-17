@@ -263,7 +263,6 @@ QString decodePath(const QString &encodedPath) {
 QString buildCleanAbsolutePath(const QDir &baseDir,
                                const QString &relativePath) {
   QString absolutePath = baseDir.absoluteFilePath(relativePath);
-  qDebug() << "Absolute Path: " << absolutePath;
   return baseDir.cleanPath(absolutePath);
 }
 
