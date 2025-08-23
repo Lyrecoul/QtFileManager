@@ -334,15 +334,15 @@ void ImageViewer::initThumbnailView() {
     thumbnailList->setGridSize(QSize(130, 100));
     thumbnailList->setSpacing(10);
 
-    // 优化缩略图列表和滚动条样式
+    // 优化缩略图列表和滚动条样式，与主窗口风格一致
     thumbnailList->setStyleSheet(
         "QListWidget { background-color: transparent; border: none; }"
         "QListWidget::item { border: 2px solid transparent; border-radius: 4px; }"
         "QListWidget::item:selected { border: 2px solid #4CAF50; }"
-        "QScrollBar:vertical { background: rgba(50, 50, 50, 120); width: 20px; margin: 0px; }"
-        "QScrollBar::handle:vertical { background: rgba(255, 255, 255, 120); min-height: 30px; border-radius: 8px; }"
+        "QScrollBar:vertical { width: 22px; background: transparent; margin: 3px 0 3px 0; border-radius: 4px; }"
+        "QScrollBar::handle:vertical { background: #666666; min-height: 20px; border-radius: 4px; }"
+        "QScrollBar::handle:vertical:hover { background: #888888; }"
         "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }"
-        "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }"
         "QScrollBar:horizontal { height: 0px; }"
     );
 
@@ -350,16 +350,8 @@ void ImageViewer::initThumbnailView() {
     thumbnailList->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     thumbnailList->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
 
-    // 启用触摸滚动
-    QScrollerProperties sp;
-    sp.setScrollMetric(QScrollerProperties::DragVelocitySmoothingFactor, 0.6);
-    sp.setScrollMetric(QScrollerProperties::OvershootDragResistanceFactor, 0.3);
-    sp.setScrollMetric(QScrollerProperties::OvershootScrollDistanceFactor, 0.3);
-
-    // 为缩略图列表添加触摸滚动支持
-    QScroller *listScroller = QScroller::scroller(thumbnailList);
-    listScroller->setScrollerProperties(sp);
-    listScroller->grabGesture(thumbnailList, QScroller::TouchGesture);
+    // 启用触摸滚动，与主窗口保持一致
+    QScroller::grabGesture(thumbnailList->viewport(), QScroller::TouchGesture);
 
     // 确保滚动条可以正常工作
     thumbnailScrollArea->setWidget(thumbnailList);
