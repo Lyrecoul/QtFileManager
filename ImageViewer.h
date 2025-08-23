@@ -16,6 +16,8 @@
 #include <QListWidget>
 #include <QFutureWatcher>
 #include <QMutex>
+#include <QPair>
+#include <QList>
 
 class ImageViewer : public QWidget {
     Q_OBJECT
@@ -54,6 +56,7 @@ private:
     void showThumbnailMenu();
     void hideThumbnailMenu();
     void switchToImage(int index);
+    void processBatchThumbnails(const QList<QPair<QString, QPixmap>>& batch);
 
 private:
     QString currentPath;

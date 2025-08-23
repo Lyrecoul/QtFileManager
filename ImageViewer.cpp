@@ -397,10 +397,14 @@ void ImageViewer::loadThumbnailsInBackground() {
 
     // 后台线程生成缩略图
     auto future = QtConcurrent::run([this, cacheDirPath]() {
+        // 优化性能：批量处理缩略图
+        QList<QPair<QString, QPixmap>> batchResults;
+        const int batchSize = 10; // 每批处理 10 个
+        
         for (int i = 0; i < imageFiles.size(); ++i) {
             const QString path = imageFiles[i].absoluteFilePath();
 
-            // 生成缓存文件名（使用文件名+文件大小作为哈希基础，确保文件修改后缓存失效）
+            // 生成缓存文件名（使用文件名 + 文件大小作为哈希基础，确保文件修改后缓存失效）
             QFileInfo fileInfo(path);
             QString hashBase = fileInfo.fileName() + QString::number(fileInfo.size());
             QString fileHash = QString(QCryptographicHash::hash(hashBase.toUtf8(), 
@@ -421,21 +425,27 @@ void ImageViewer::loadThumbnailsInBackground() {
                     int sizeInBytes = thumb.width() * thumb.height() * thumb.depth() / 8;
                     thumbnailCache.insert(path, new QPixmap(thumb), sizeInBytes);
                     thumbnailMutex.unlock();
-
-                    QMetaObject::invokeMethod(this, "onThumbnailLoaded",
-                                             Qt::QueuedConnection,
-                                             Q_ARG(QString, path),
-                                             Q_ARG(QPixmap, thumb));
+                    
+                    batchResults.append(qMakePair(path, thumb));
+                    
+                    // 批量处理
+                    if (batchResults.size() >= batchSize) {
+                        processBatchThumbnails(batchResults);
+                        batchResults.clear();
+                    }
                     continue;
                 }
             }
 
             // 检查内存缓存
             if (thumbnailCache.contains(path)) {
-                QMetaObject::invokeMethod(this, "onThumbnailLoaded",
-                                         Qt::QueuedConnection,
-                                         Q_ARG(QString, path),
-                                         Q_ARG(QPixmap, *thumbnailCache[path]));
+                batchResults.append(qMakePair(path, *thumbnailCache[path]));
+                
+                // 批量处理
+                if (batchResults.size() >= batchSize) {
+                    processBatchThumbnails(batchResults);
+                    batchResults.clear();
+                }
                 continue;
             }
 
@@ -450,17 +460,25 @@ void ImageViewer::loadThumbnailsInBackground() {
                 int sizeInBytes = thumb.width() * thumb.height() * thumb.depth() / 8;
                 thumbnailCache.insert(path, new QPixmap(thumb), sizeInBytes);
                 thumbnailMutex.unlock();
-
-                QMetaObject::invokeMethod(this, "onThumbnailLoaded",
-                                         Qt::QueuedConnection,
-                                         Q_ARG(QString, path),
-                                         Q_ARG(QPixmap, thumb));
+                
+                batchResults.append(qMakePair(path, thumb));
+                
+                // 批量处理
+                if (batchResults.size() >= batchSize) {
+                    processBatchThumbnails(batchResults);
+                    batchResults.clear();
+                }
             }
 
-            // 每处理20个休息一下，避免UI卡顿
-            if (i % 20 == 0) {
-                QThread::msleep(10);
+            // 每处理 15 个休息一下，避免 UI 卡顿
+            if (i % 15 == 0) {
+                QThread::msleep(15);
             }
+        }
+        
+        // 处理剩余的缩略图
+        if (!batchResults.isEmpty()) {
+            processBatchThumbnails(batchResults);
         }
     });
 
@@ -560,4 +578,13 @@ void ImageViewer::switchToImage(int index) {
 
         updateImageDisplay();
     }
+}
+
+// 处理批量缩略图更新
+void ImageViewer::processBatchThumbnails(const QList<QPair<QString, QPixmap>>& batch) {
+    QMetaObject::invokeMethod(this, [this, batch]() {
+        for (const auto& pair : batch) {
+            onThumbnailLoaded(pair.first, pair.second);
+        }
+    }, Qt::QueuedConnection);
 }
