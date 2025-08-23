@@ -29,6 +29,7 @@
 #include <QVBoxLayout>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QEasingCurve>
 
 FileManagerWindow::FileManagerWindow(QWidget *parent)
     : QWidget(parent, Qt::Tool | Qt::FramelessWindowHint),
@@ -136,6 +137,31 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
   fileList->setUniformItemSizes(true);
   fileList->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
   QScroller::grabGesture(fileList->viewport(), QScroller::TouchGesture);
+  
+  // 配置滚动属性，使其更不灵敏并移除回弹效果
+  QScroller *scroller = QScroller::scroller(fileList->viewport());
+  QScrollerProperties properties = scroller->scrollerProperties();
+  
+  // 优化滚动灵敏度，使其更跟手
+  properties.setScrollMetric(QScrollerProperties::DragVelocitySmoothingFactor, 0.7);
+  properties.setScrollMetric(QScrollerProperties::MousePressEventDelay, 0.3);
+  
+  // 控制滚动速度和加速度
+  properties.setScrollMetric(QScrollerProperties::DecelerationFactor, 0.75);
+  properties.setScrollMetric(QScrollerProperties::MaximumVelocity, 0.7);
+  properties.setScrollMetric(QScrollerProperties::AcceleratingFlickMaximumTime, 0.3);
+  properties.setScrollMetric(QScrollerProperties::AcceleratingFlickSpeedupFactor, 0.5);
+  
+  // 优化减速效果
+  properties.setScrollMetric(QScrollerProperties::ScrollingCurve, QVariant::fromValue(QEasingCurve(QEasingCurve::OutQuad)));
+  
+  // 移除回弹效果
+  properties.setScrollMetric(QScrollerProperties::OvershootDragResistanceFactor, 0.1);
+  properties.setScrollMetric(QScrollerProperties::OvershootDragDistanceFactor, 0.1);
+  properties.setScrollMetric(QScrollerProperties::OvershootScrollDistanceFactor, 0.1);
+  properties.setScrollMetric(QScrollerProperties::OvershootScrollTime, 0.1);
+  
+  scroller->setScrollerProperties(properties);
   fileList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   fileList->setMaximumWidth(320 - 40 - 8);
 
