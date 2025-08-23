@@ -27,6 +27,8 @@
 #include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
+#include <QMutex>
+#include <QMutexLocker>
 
 FileManagerWindow::FileManagerWindow(QWidget *parent)
     : QWidget(parent, Qt::Tool | Qt::FramelessWindowHint),
@@ -34,7 +36,7 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
       reverseSortOrder(false), isRenameMode(false), renameEdit(nullptr),
       keyboard(nullptr), renameIndex(-1), isDeleteMode(false), deleteIndex(-1),
       deleteDialog(nullptr), deleteConfirmButton(nullptr),
-      deleteCancelButton(nullptr) {
+      deleteCancelButton(nullptr), loadingCancelled(false), loadingMutex() {
 
   setWindowTitle("文件管理器");
   setAttribute(Qt::WA_DeleteOnClose, false);
@@ -186,99 +188,114 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
   loadFileItems(currentPath);
 }
 
+// 使用静态缓存存储图标，避免重复加载
+static QCache<QString, QIcon> iconCache(100);
+
 QIcon getMaterialIcon(const QFileInfo &info) {
   if (info.isDir()) {
-    return QIcon(":/icons/folder.png");
+    static QIcon folderIcon(":/icons/folder.png");
+    return folderIcon;
   }
 
   // 检查文件是否可执行
   if (info.isExecutable()) {
-    return QIcon(":/icons/exe.png");
+    static QIcon exeIcon(":/icons/exe.png");
+    return exeIcon;
   }
 
   QString suffix = info.suffix().toLower();
-
-  // 音频文件
-  if (suffix == "mp3" || suffix == "flac" || suffix == "wav" ||
-      suffix == "aac" || suffix == "ogg") {
-    return QIcon(":/icons/music.png");
+  
+  // 检查缓存中是否已有该图标
+  if (iconCache.contains(suffix)) {
+    return *iconCache.object(suffix);
   }
 
-  // 视频文件
-  if (suffix == "mp4" || suffix == "mkv" || suffix == "avi" ||
-      suffix == "mov" || suffix == "wmv") {
-    return QIcon(":/icons/film.png");
-  }
+  // 使用哈希表代替多个if-else语句，提高查找效率
+  static const QHash<QString, QString> suffixToIconPath = {
+    {"mp3", ":/icons/music.png"},
+    {"flac", ":/icons/music.png"},
+    {"wav", ":/icons/music.png"},
+    {"aac", ":/icons/music.png"},
+    {"ogg", ":/icons/music.png"},
+    {"mp4", ":/icons/film.png"},
+    {"mkv", ":/icons/film.png"},
+    {"avi", ":/icons/film.png"},
+    {"mov", ":/icons/film.png"},
+    {"wmv", ":/icons/film.png"},
+    {"png", ":/icons/image.png"},
+    {"jpg", ":/icons/image.png"},
+    {"jpeg", ":/icons/image.png"},
+    {"bmp", ":/icons/image.png"},
+    {"gif", ":/icons/image.png"},
+    {"webp", ":/icons/image.png"},
+    {"srt", ":/icons/subtitles.png"},
+    {"ass", ":/icons/subtitles.png"},
+    {"vtt", ":/icons/subtitles.png"},
+    {"sub", ":/icons/subtitles.png"},
+    {"lrc", ":/icons/lyrics.png"},
+    {"md", ":/icons/markdown.png"},
+    {"txt", ":/icons/text.png"},
+    {"log", ":/icons/text.png"},
+    {"ini", ":/icons/text.png"},
+    {"conf", ":/icons/text.png"},
+    {"json", ":/icons/json.png"},
+    {"img", ":/icons/disk.png"},
+    {"iso", ":/icons/disk.png"},
+    {"wim", ":/icons/disk.png"},
+    {"zip", ":/icons/zip.png"},
+    {"rar", ":/icons/zip.png"},
+    {"tar", ":/icons/zip.png"},
+    {"gz", ":/icons/zip.png"},
+    {"c", ":/icons/code.png"},
+    {"cpp", ":/icons/code.png"},
+    {"h", ":/icons/code.png"},
+    {"py", ":/icons/code.png"},
+    {"java", ":/icons/code.png"},
+    {"js", ":/icons/code.png"},
+    {"html", ":/icons/code.png"},
+    {"css", ":/icons/code.png"},
+    {"exe", ":/icons/exe.png"},
+    {"sh", ":/icons/exe.png"},
+    {"bat", ":/icons/exe.png"},
+    {"msi", ":/icons/exe.png"},
+    {"app", ":/icons/exe.png"},
+    {"command", ":/icons/exe.png"},
+    {"out", ":/icons/exe.png"},
+    {"AppImage", ":/icons/exe.png"},
+    {"bin", ":/icons/exe.png"},
+    {"run", ":/icons/exe.png"}
+  };
 
-  // 图片文件
-  if (suffix == "png" || suffix == "jpg" || suffix == "jpeg" ||
-      suffix == "bmp" || suffix == "gif" || suffix == "webp") {
-    return QIcon(":/icons/image.png");
-  }
-
-  // 字幕文件
-  if (suffix == "srt" || suffix == "ass" || suffix == "vtt" ||
-      suffix == "sub") {
-    return QIcon(":/icons/subtitles.png");
-  }
-
-  // 歌词文件
-  if (suffix == "lrc") {
-    return QIcon(":/icons/lyrics.png");
-  }
-
-  // Markdown 文件
-  if (suffix == "md") {
-    return QIcon(":/icons/markdown.png");
-  }
-
-  // 文本文件
-  if (suffix == "txt" || suffix == "log" || suffix == "ini" ||
-      suffix == "conf") {
-    return QIcon(":/icons/text.png");
-  }
-
-  // JSON 文件
-  if (suffix == "json") {
-    return QIcon(":/icons/json.png");
-  }
-
-  // 磁盘镜像文件
-  if (suffix == "img" || suffix == "iso" || suffix == "wim") {
-    return QIcon(":/icons/disk.png");
-  }
-
-  // 压缩包文件
-  if (suffix == "zip" || suffix == "rar" || suffix == "tar" || suffix == "gz") {
-    return QIcon(":/icons/zip.png");
-  }
-
-  // 代码文件
-  if (suffix == "c" || suffix == "cpp" || suffix == "h" || suffix == "py" ||
-      suffix == "java" || suffix == "js" || suffix == "html" ||
-      suffix == "css") {
-    return QIcon(":/icons/code.png");
-  }
-
-  // 可执行文件
-  if (suffix == "exe" || suffix == "sh" || suffix == "bat" || suffix == "msi" ||
-      suffix == "app" || suffix == "command" || suffix == "out" ||
-      suffix == "AppImage" || suffix == "bin" || suffix == "run") {
-    return QIcon(":/icons/exe.png");
-  }
-
-  // 默认图标
-  return QIcon(":/icons/unknown.png");
+  // 查找对应的图标路径
+  QString iconPath = suffixToIconPath.value(suffix, ":/icons/unknown.png");
+  QIcon *icon = new QIcon(iconPath);
+  
+  // 将图标存入缓存
+  iconCache.insert(suffix, icon);
+  
+  return *icon;
 }
 
 void FileManagerWindow::loadFileItems(const QString &path) {
+  QMutexLocker locker(&loadingMutex);
+  
+  // 取消之前的加载操作
+  loadingCancelled = true;
+  
   QString musicPath = "/userdisk/Music";
   QString rootPath = QDir(musicPath).exists() ? musicPath : QDir::homePath();
   QString normalizedPath = QDir(path).absolutePath();
   currentPath = normalizedPath.startsWith(rootPath) ? normalizedPath : rootPath;
 
+  // 完全清除旧内容，确保没有残留
+  fileList->setUpdatesEnabled(false);
   fileList->clear();
   fileInfoList.clear();
+  // 强制立即处理所有待处理事件，确保清除完成
+  QCoreApplication::processEvents();
+  
+  // 重置取消标志，开始新的加载
+  loadingCancelled = false;
 
   // 添加面包屑导航作为第一项
   QListWidgetItem *breadcrumbItem = new QListWidgetItem();
@@ -341,25 +358,21 @@ void FileManagerWindow::loadFileItems(const QString &path) {
     filters |= QDir::Hidden;
   }
   QFileInfoList entries = dir.entryInfoList(filters, sortFlags);
-  QFileIconProvider iconProvider;
 
   // 如果启用了隐藏与歌曲匹配的 lrc 文件功能，则过滤掉这些文件
   if (hideMatchingLrcFiles) {
     QFileInfoList filteredEntries;
     QSet<QString> musicFiles;
 
-    // 首先收集所有音乐文件
+    // 使用更高效的方式收集音乐文件
+    static const QSet<QString> musicExtensions = {"mp3", "flac", "wav", "aac", "ogg"};
     for (const QFileInfo &info : entries) {
-      if (info.isFile()) {
-        QString suffix = info.suffix().toLower();
-        if (suffix == "mp3" || suffix == "flac" || suffix == "wav" ||
-            suffix == "aac" || suffix == "ogg") {
-          musicFiles.insert(info.completeBaseName());
-        }
+      if (info.isFile() && musicExtensions.contains(info.suffix().toLower())) {
+        musicFiles.insert(info.completeBaseName());
       }
     }
 
-    // 然后过滤掉与音乐文件匹配的 lrc 文件
+    // 过滤掉与音乐文件匹配的 lrc 文件
     for (const QFileInfo &info : entries) {
       if (info.isFile() && info.suffix().toLower() == "lrc") {
         if (musicFiles.contains(info.completeBaseName())) {
@@ -382,17 +395,57 @@ void FileManagerWindow::loadFileItems(const QString &path) {
     item->setSizeHint(QSize(fileList->width(), 60));
     fileList->addItem(item);
     fileList->setItemWidget(item, emptyLabel);
+    fileList->setUpdatesEnabled(true);
+    return;
   }
 
-  for (const QFileInfo &info : entries) {
-    QListWidgetItem *item = new QListWidgetItem();
-    QFontMetrics fm(item->font());
-    item->setText(fm.elidedText(info.fileName(), Qt::ElideRight, 150));
-    item->setIcon(getMaterialIcon(info));
-    item->setSizeHint(QSize(fileList->width(), 44));
-    fileList->addItem(item);
-    fileInfoList.append(info);
+  // 使用延迟加载处理大量文件，但根据文件数量动态调整批次大小
+  int totalFiles = entries.size();
+  // 文件数量越多，批次大小越大，减少UI更新次数
+  int batchSize = qMin(100 + totalFiles / 50, 200);
+  int loadedFiles = 0;
+  
+  // 预分配空间
+  fileInfoList.reserve(totalFiles);
+  
+  // 批量处理文件
+  while (loadedFiles < totalFiles && !loadingCancelled) {
+    int endIndex = qMin(loadedFiles + batchSize, totalFiles);
+    
+    // 处理当前批次
+    for (int i = loadedFiles; i < endIndex && !loadingCancelled; ++i) {
+      const QFileInfo &info = entries[i];
+      QListWidgetItem *item = new QListWidgetItem();
+      QFontMetrics fm(item->font());
+      item->setText(fm.elidedText(info.fileName(), Qt::ElideRight, 150));
+      item->setIcon(getMaterialIcon(info));
+      item->setSizeHint(QSize(fileList->width(), 44));
+      fileList->addItem(item);
+      fileInfoList.append(info);
+    }
+    
+    // 更新已加载的文件数量
+    loadedFiles = endIndex;
+    
+    // 每处理一批次，允许UI更新一次
+    fileList->setUpdatesEnabled(true);
+    // 只在文件数量较多时才处理事件，减少UI阻塞
+    if (totalFiles > 500) {
+      QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+    }
+    fileList->setUpdatesEnabled(false);
+    
+    // 检查是否被取消
+    if (loadingCancelled) {
+      // 清理已加载但未完成的部分
+      fileList->clear();
+      fileInfoList.clear();
+      break;
+    }
   }
+  
+  // 最后启用更新
+  fileList->setUpdatesEnabled(true);
 }
 
 void FileManagerWindow::updateBreadcrumbForItem(QWidget *breadcrumbBar) {

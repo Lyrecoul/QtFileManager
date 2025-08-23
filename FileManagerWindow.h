@@ -6,6 +6,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMutex>
 #include <QPushButton>
 #include <QSettings>
 #include <QTimer>
@@ -78,6 +79,10 @@ private:
   QWidget *deleteDialog;
   QPushButton *deleteConfirmButton;
   QPushButton *deleteCancelButton;
+  
+  // 分批加载控制
+  bool loadingCancelled;
+  QMutex loadingMutex;
 };
 
 #endif // FILEMANAGERWINDOW_H
