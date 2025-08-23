@@ -1,5 +1,6 @@
 // ImageViewer.cpp
 #include "ImageViewer.h"
+#include "qnamespace.h"
 
 #include <QApplication>
 #include <QFileInfo>
@@ -322,16 +323,15 @@ void ImageViewer::initThumbnailView() {
     // 创建滚动区域
     thumbnailScrollArea = new QScrollArea(this);
     thumbnailScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    thumbnailScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    thumbnailScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     thumbnailScrollArea->setStyleSheet("background-color: rgba(0,0,0,200);");
-    thumbnailScrollArea->setAttribute(Qt::WA_TransparentForMouseEvents, false);
 
     // 创建列表控件
     thumbnailList = new QListWidget(this);
     thumbnailList->setViewMode(QListWidget::IconMode);
     thumbnailList->setIconSize(QSize(120, 90));
-    thumbnailList->setResizeMode(QListWidget::Adjust);  // 自动调整布局
-    thumbnailList->setGridSize(QSize(130, 100));  // 设置统一的网格大小，确保对齐
+    thumbnailList->setResizeMode(QListWidget::Adjust);
+    thumbnailList->setGridSize(QSize(130, 100));
     thumbnailList->setSpacing(10);
 
     // 优化缩略图列表和滚动条样式
@@ -339,24 +339,35 @@ void ImageViewer::initThumbnailView() {
         "QListWidget { background-color: transparent; border: none; }"
         "QListWidget::item { border: 2px solid transparent; border-radius: 4px; }"
         "QListWidget::item:selected { border: 2px solid #4CAF50; }"
-        "QScrollBar:vertical { background: rgba(50, 50, 50, 120); width: 8px; margin: 0px; }"
-        "QScrollBar::handle:vertical { background: rgba(255, 255, 255, 120); min-height: 20px; border-radius: 4px; }"
+        "QScrollBar:vertical { background: rgba(50, 50, 50, 120); width: 20px; margin: 0px; }"
+        "QScrollBar::handle:vertical { background: rgba(255, 255, 255, 120); min-height: 30px; border-radius: 8px; }"
         "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }"
         "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }"
         "QScrollBar:horizontal { height: 0px; }"
     );
 
-    thumbnailList->installEventFilter(this);
+    // 设置滚动属性
+    thumbnailList->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    thumbnailList->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
+
+    // 启用触摸滚动
+    QScrollerProperties sp;
+    sp.setScrollMetric(QScrollerProperties::DragVelocitySmoothingFactor, 0.6);
+    sp.setScrollMetric(QScrollerProperties::OvershootDragResistanceFactor, 0.3);
+    sp.setScrollMetric(QScrollerProperties::OvershootScrollDistanceFactor, 0.3);
+
+    // 为缩略图列表添加触摸滚动支持
+    QScroller *listScroller = QScroller::scroller(thumbnailList);
+    listScroller->setScrollerProperties(sp);
+    listScroller->grabGesture(thumbnailList, QScroller::TouchGesture);
+
+    // 确保滚动条可以正常工作
+    thumbnailScrollArea->setWidget(thumbnailList);
+    thumbnailScrollArea->setWidgetResizable(true);
 
     // 禁用拖动功能但保持滚动功能
     thumbnailList->setDragEnabled(false);
-    thumbnailList->setMovement(QListWidget::Static);  // 禁止项目移动
-
-    // 启用触摸滚动
-    QScroller::grabGesture(thumbnailList, QScroller::LeftMouseButtonGesture);
-
-    thumbnailScrollArea->setWidget(thumbnailList);
-    thumbnailScrollArea->setWidgetResizable(true);
+    thumbnailList->setMovement(QListWidget::Static);
 
     connect(thumbnailList, &QListWidget::itemClicked, this, &ImageViewer::onThumbnailClicked);
 
