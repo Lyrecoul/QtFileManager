@@ -83,6 +83,10 @@ private:
   // 分批加载控制
   bool loadingCancelled;
   QMutex loadingMutex;
+
+  // 加载指示器
+  QLabel *loadingIndicator;
+  bool isLoading;
 };
 
 #endif // FILEMANAGERWINDOW_H

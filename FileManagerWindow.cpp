@@ -37,7 +37,8 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
       reverseSortOrder(false), isRenameMode(false), renameEdit(nullptr),
       keyboard(nullptr), renameIndex(-1), isDeleteMode(false), deleteIndex(-1),
       deleteDialog(nullptr), deleteConfirmButton(nullptr),
-      deleteCancelButton(nullptr), loadingCancelled(false), loadingMutex() {
+      deleteCancelButton(nullptr), loadingCancelled(false), loadingMutex(),
+      loadingIndicator(nullptr), isLoading(false) {
 
   setWindowTitle("文件管理器");
   setAttribute(Qt::WA_DeleteOnClose, false);
@@ -192,11 +193,19 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
   connect(fileList, &QListWidget::itemClicked, this,
           &FileManagerWindow::onItemClicked);
 
+  // 创建加载指示器
+  loadingIndicator = new QLabel("正在加载文件夹...");
+  loadingIndicator->setAlignment(Qt::AlignCenter);
+  loadingIndicator->setStyleSheet("background: transparent; color: #888888;");
+  loadingIndicator->setFixedHeight(60);
+  loadingIndicator->hide(); // 初始状态隐藏
+
   // 主体布局
   QVBoxLayout *mainAreaLayout = new QVBoxLayout();
   mainAreaLayout->setContentsMargins(0, 4, 4, 4);
   mainAreaLayout->setSpacing(4);
   mainAreaLayout->addWidget(fileList);
+  mainAreaLayout->addWidget(loadingIndicator);
 
   QHBoxLayout *mainLayout = new QHBoxLayout(this);
   mainLayout->setContentsMargins(0, 0, 0, 0);
@@ -313,6 +322,24 @@ void FileManagerWindow::loadFileItems(const QString &path) {
   QString normalizedPath = QDir(path).absolutePath();
   currentPath = normalizedPath.startsWith(rootPath) ? normalizedPath : rootPath;
 
+  // 先检查文件夹内的文件数量，只有在文件数量较多时才显示加载指示器
+  QDir countDir(currentPath);
+  QDir::Filters countFilters = QDir::AllEntries | QDir::NoDotAndDotDot;
+  if (showHiddenFiles) {
+    countFilters |= QDir::Hidden;
+  }
+  int fileCount = countDir.entryList(countFilters).size();
+
+  // 只有当文件数量超过50个时才显示加载指示器
+  if (fileCount > 50) {
+    isLoading = true;
+    fileList->hide();
+    loadingIndicator->show();
+    QCoreApplication::processEvents(); // 确保UI立即更新
+  } else {
+    isLoading = false;
+  }
+
   // 完全清除旧内容，确保没有残留
   fileList->setUpdatesEnabled(false);
   fileList->clear();
@@ -422,6 +449,13 @@ void FileManagerWindow::loadFileItems(const QString &path) {
     fileList->addItem(item);
     fileList->setItemWidget(item, emptyLabel);
     fileList->setUpdatesEnabled(true);
+
+    // 只在显示过加载指示器的情况下才隐藏它
+    if (isLoading) {
+      isLoading = false;
+      loadingIndicator->hide();
+      fileList->show();
+    }
     return;
   }
 
@@ -466,12 +500,26 @@ void FileManagerWindow::loadFileItems(const QString &path) {
       // 清理已加载但未完成的部分
       fileList->clear();
       fileInfoList.clear();
+
+      // 只在显示过加载指示器的情况下才隐藏它
+      if (isLoading) {
+        isLoading = false;
+        loadingIndicator->hide();
+        fileList->show();
+      }
       break;
     }
   }
   
   // 最后启用更新
   fileList->setUpdatesEnabled(true);
+
+  // 只在显示过加载指示器的情况下才隐藏它
+  if (isLoading) {
+    isLoading = false;
+    loadingIndicator->hide();
+    fileList->show();
+  }
 }
 
 void FileManagerWindow::updateBreadcrumbForItem(QWidget *breadcrumbBar) {
