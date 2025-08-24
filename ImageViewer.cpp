@@ -27,11 +27,19 @@ ImageViewer::ImageViewer(const QString &path, QWidget *parent)
     setAttribute(Qt::WA_TranslucentBackground);
     setAttribute(Qt::WA_DeleteOnClose);
 
-    // 加载图片
-    originalPixmap = QPixmap(currentPath);
-    rotatedPixmap = originalPixmap;
+    // 检查是否是 GIF 文件
+    isGif = path.toLower().endsWith(".gif");
 
-    if (originalPixmap.isNull()) {
+    if (isGif) {
+        // 初始化 GIF 动画
+        setupGifAnimation();
+    } else {
+        // 加载普通图片
+        originalPixmap = QPixmap(currentPath);
+        rotatedPixmap = originalPixmap;
+    }
+
+    if (originalPixmap.isNull() && !isGif) {
         QTimer::singleShot(1500, this, &ImageViewer::close);
     }
 
@@ -134,36 +142,70 @@ void ImageViewer::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
     painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
 
-    if (rotatedPixmap.isNull()) {
+    if (isGif) {
+        if (currentGifFrame.isNull()) {
+            painter.fillRect(rect(), Qt::black);
+            painter.setPen(Qt::white);
+            painter.drawText(rect(), Qt::AlignCenter, "无法加载GIF");
+            return;
+        }
+
+        // 使用GIF当前帧
+        QSizeF scaledSize = currentGifFrame.size() * scaleFactor;
+        QSizeF viewSize(width(), height());
+        QPointF center(width() / 2.0, height() / 2.0);
+        QPointF topLeft =
+            center - QPointF(scaledSize.width() / 2.0, scaledSize.height() / 2.0) +
+            offset;
+
+        QSizeF imgSize = scaledSize;
+        QPointF minOffset(qMin(0.0, (viewSize.width() - imgSize.width()) / 2.0),
+                          qMin(0.0, (viewSize.height() - imgSize.height()) / 2.0));
+        QPointF maxOffset(qMax(0.0, (imgSize.width() - viewSize.width()) / 2.0),
+                          qMax(0.0, (imgSize.height() - viewSize.height()) / 2.0));
+        offset.setX(qBound(minOffset.x(), offset.x(), maxOffset.x()));
+        offset.setY(qBound(minOffset.y(), offset.y(), maxOffset.y()));
+
+        topLeft = center -
+                  QPointF(scaledSize.width() / 2.0, scaledSize.height() / 2.0) +
+                  offset;
+
         painter.fillRect(rect(), Qt::black);
-        painter.setPen(Qt::white);
-        painter.drawText(rect(), Qt::AlignCenter, "无法加载图片");
-        return;
+        painter.drawPixmap(
+            QRectF(topLeft, scaledSize), currentGifFrame,
+            QRectF(0, 0, currentGifFrame.width(), currentGifFrame.height()));
+    } else {
+        if (rotatedPixmap.isNull()) {
+            painter.fillRect(rect(), Qt::black);
+            painter.setPen(Qt::white);
+            painter.drawText(rect(), Qt::AlignCenter, "无法加载图片");
+            return;
+        }
+
+        QSizeF scaledSize = rotatedPixmap.size() * scaleFactor;
+        QSizeF viewSize(width(), height());
+        QPointF center(width() / 2.0, height() / 2.0);
+        QPointF topLeft =
+            center - QPointF(scaledSize.width() / 2.0, scaledSize.height() / 2.0) +
+            offset;
+
+        QSizeF imgSize = scaledSize;
+        QPointF minOffset(qMin(0.0, (viewSize.width() - imgSize.width()) / 2.0),
+                          qMin(0.0, (viewSize.height() - imgSize.height()) / 2.0));
+        QPointF maxOffset(qMax(0.0, (imgSize.width() - viewSize.width()) / 2.0),
+                          qMax(0.0, (imgSize.height() - viewSize.height()) / 2.0));
+        offset.setX(qBound(minOffset.x(), offset.x(), maxOffset.x()));
+        offset.setY(qBound(minOffset.y(), offset.y(), maxOffset.y()));
+
+        topLeft = center -
+                  QPointF(scaledSize.width() / 2.0, scaledSize.height() / 2.0) +
+                  offset;
+
+        painter.fillRect(rect(), Qt::black);
+        painter.drawPixmap(
+            QRectF(topLeft, scaledSize), rotatedPixmap,
+            QRectF(0, 0, rotatedPixmap.width(), rotatedPixmap.height()));
     }
-
-    QSizeF scaledSize = rotatedPixmap.size() * scaleFactor;
-    QSizeF viewSize(width(), height());
-    QPointF center(width() / 2.0, height() / 2.0);
-    QPointF topLeft =
-        center - QPointF(scaledSize.width() / 2.0, scaledSize.height() / 2.0) +
-        offset;
-
-    QSizeF imgSize = scaledSize;
-    QPointF minOffset(qMin(0.0, (viewSize.width() - imgSize.width()) / 2.0),
-                      qMin(0.0, (viewSize.height() - imgSize.height()) / 2.0));
-    QPointF maxOffset(qMax(0.0, (imgSize.width() - viewSize.width()) / 2.0),
-                      qMax(0.0, (imgSize.height() - viewSize.height()) / 2.0));
-    offset.setX(qBound(minOffset.x(), offset.x(), maxOffset.x()));
-    offset.setY(qBound(minOffset.y(), offset.y(), maxOffset.y()));
-
-    topLeft = center -
-              QPointF(scaledSize.width() / 2.0, scaledSize.height() / 2.0) +
-              offset;
-
-    painter.fillRect(rect(), Qt::black);
-    painter.drawPixmap(
-        QRectF(topLeft, scaledSize), rotatedPixmap,
-        QRectF(0, 0, rotatedPixmap.width(), rotatedPixmap.height()));
 
     int margin = 12;
     int totalWidth = zoomInButton->width() + zoomOutButton->width() +
@@ -247,7 +289,15 @@ void ImageViewer::onZoomIn() {
 
 void ImageViewer::onZoomOut() {
     double minScale = 0.2;
-    if (!rotatedPixmap.isNull()) {
+    if (isGif) {
+        if (!currentGifFrame.isNull()) {
+            double scaleW = double(width()) / currentGifFrame.width();
+            double scaleH = double(height()) / currentGifFrame.height();
+            minScale = qMin(scaleW, scaleH);
+            minScale = qMin(minScale, 1.0);
+            minScale = qMax(minScale, 0.05);
+        }
+    } else if (!rotatedPixmap.isNull()) {
         double scaleW = double(width()) / rotatedPixmap.width();
         double scaleH = double(height()) / rotatedPixmap.height();
         minScale = qMin(scaleW, scaleH);
@@ -279,7 +329,16 @@ void ImageViewer::hideZoomButtons() {
 }
 
 void ImageViewer::updateImageDisplay() {
-    if (!rotatedPixmap.isNull()) {
+    if (isGif) {
+        if (!currentGifFrame.isNull()) {
+            double scaleW = double(width()) / currentGifFrame.width();
+            double scaleH = double(height()) / currentGifFrame.height();
+            double fitScale = qMin(scaleW, scaleH);
+            fitScale = qMin(fitScale, 1.0);
+            fitScale = qMax(fitScale, 0.05);
+            scaleFactor = fitScale;
+        }
+    } else if (!rotatedPixmap.isNull()) {
         double scaleW = double(width()) / rotatedPixmap.width();
         double scaleH = double(height()) / rotatedPixmap.height();
         double fitScale = qMin(scaleW, scaleH);
@@ -294,7 +353,13 @@ void ImageViewer::rotateImage() {
     rotationAngle = (rotationAngle + 90) % 360;
     QTransform trans;
     trans.rotate(rotationAngle);
-    rotatedPixmap = originalPixmap.transformed(trans, Qt::SmoothTransformation);
+
+    if (isGif) {
+        // GIF 不支持旋转
+        return;
+    } else {
+        rotatedPixmap = originalPixmap.transformed(trans, Qt::SmoothTransformation);
+    }
     offset = QPointF(0, 0);
 }
 
@@ -517,12 +582,40 @@ void ImageViewer::onThumbnailClicked(QListWidgetItem* item) {
     currentPath = newPath;
     setWindowTitle(QFileInfo(newPath).fileName());
 
-    // 加载新图片
-    originalPixmap = QPixmap(currentPath);
-    rotationAngle = 0;
-    rotatedPixmap = originalPixmap;
-    offset = QPointF(0, 0);
+    // 检查是否是 GIF 文件
+    bool newIsGif = newPath.toLower().endsWith(".gif");
 
+    // 如果从 GIF 切换到普通图片或反之，需要重置相关状态
+    if (isGif != newIsGif) {
+        // 停止当前 GIF 动画（如果是）
+        if (isGif && gifMovie) {
+            gifMovie->stop();
+            delete gifMovie;
+            gifMovie = nullptr;
+        }
+
+        isGif = newIsGif;
+
+        if (isGif) {
+            // 初始化 GIF 动画
+            setupGifAnimation();
+        } else {
+            // 加载普通图片
+            originalPixmap = QPixmap(currentPath);
+            rotationAngle = 0;
+            rotatedPixmap = originalPixmap;
+        }
+    } else if (isGif) {
+        // 切换到新的 GIF
+        setupGifAnimation();
+    } else {
+        // 切换到新的普通图片
+        originalPixmap = QPixmap(currentPath);
+        rotationAngle = 0;
+        rotatedPixmap = originalPixmap;
+    }
+
+    offset = QPointF(0, 0);
     updateImageDisplay();
     hideThumbnailMenu();
 }
@@ -574,11 +667,40 @@ void ImageViewer::switchToImage(int index) {
         currentPath = imageFiles[index].absoluteFilePath();
         setWindowTitle(QFileInfo(currentPath).fileName());
 
-        originalPixmap = QPixmap(currentPath);
-        rotationAngle = 0;
-        rotatedPixmap = originalPixmap;
-        offset = QPointF(0, 0);
+        // 检查是否是 GIF 文件
+        bool newIsGif = currentPath.toLower().endsWith(".gif");
 
+        // 如果从 GIF 切换到普通图片或反之，需要重置相关状态
+        if (isGif != newIsGif) {
+            // 停止当前 GIF 动画（如果是）
+            if (isGif && gifMovie) {
+                gifMovie->stop();
+                delete gifMovie;
+                gifMovie = nullptr;
+            }
+
+            isGif = newIsGif;
+
+            if (isGif) {
+                // 初始化 GIF 动画
+                setupGifAnimation();
+            } else {
+                // 加载普通图片
+                originalPixmap = QPixmap(currentPath);
+                rotationAngle = 0;
+                rotatedPixmap = originalPixmap;
+            }
+        } else if (isGif) {
+            // 切换到新的 GIF
+            setupGifAnimation();
+        } else {
+            // 切换到新的普通图片
+            originalPixmap = QPixmap(currentPath);
+            rotationAngle = 0;
+            rotatedPixmap = originalPixmap;
+        }
+
+        offset = QPointF(0, 0);
         updateImageDisplay();
     }
 }
@@ -590,4 +712,39 @@ void ImageViewer::processBatchThumbnails(const QList<QPair<QString, QPixmap>>& b
             onThumbnailLoaded(pair.first, pair.second);
         }
     }, Qt::QueuedConnection);
+}
+
+// 设置GIF动画
+void ImageViewer::setupGifAnimation() {
+    // 停止并删除旧的 GIF 动画（如果有）
+    if (gifMovie) {
+        gifMovie->stop();
+        delete gifMovie;
+        gifMovie = nullptr;
+    }
+
+    // 创建新的 GIF 动画
+    gifMovie = new QMovie(currentPath);
+    if (!gifMovie->isValid()) {
+        delete gifMovie;
+        gifMovie = nullptr;
+        return;
+    }
+
+    // 连接帧更新信号
+    connect(gifMovie, &QMovie::frameChanged, this, &ImageViewer::updateGifFrame);
+
+    // 获取第一帧
+    currentGifFrame = gifMovie->currentPixmap();
+
+    // 开始播放 GIF
+    gifMovie->start();
+}
+
+// 更新 GIF 帧
+void ImageViewer::updateGifFrame() {
+    if (gifMovie && gifMovie->isValid()) {
+        currentGifFrame = gifMovie->currentPixmap();
+        update(); // 触发重绘
+    }
 }

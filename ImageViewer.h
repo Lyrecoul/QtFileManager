@@ -18,6 +18,7 @@
 #include <QMutex>
 #include <QPair>
 #include <QList>
+#include <QMovie>
 
 class ImageViewer : public QWidget {
     Q_OBJECT
@@ -45,6 +46,7 @@ private slots:
     void onThumbnailClicked(QListWidgetItem* item);
     void loadThumbnailsInBackground();
     void onThumbnailLoaded(const QString& path, const QPixmap& pixmap);
+    void updateGifFrame();
 
 private:
     void updateImageDisplay();
@@ -57,6 +59,7 @@ private:
     void hideThumbnailMenu();
     void switchToImage(int index);
     void processBatchThumbnails(const QList<QPair<QString, QPixmap>>& batch);
+    void setupGifAnimation();
 
 private:
     QString currentPath;
@@ -85,6 +88,11 @@ private:
     QFutureWatcher<void>* thumbnailWatcher;
     QMutex thumbnailMutex;
     bool thumbnailsVisible = false;
+
+    // GIF动画相关
+    bool isGif = false;
+    QMovie* gifMovie = nullptr;
+    QPixmap currentGifFrame;
 };
 
 #endif // IMAGEVIEWER_H
