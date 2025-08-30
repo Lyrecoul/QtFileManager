@@ -35,18 +35,16 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
             border: none;
             padding: 8px 42px 8px 8px;
             font-size: 14px;
-            font-weight: normal;
-            font-family: "OPPOSans", "Noto Color Emoji", sans-serif;
             letter-spacing: -0.5px;
         }
-        QTextBrowser h1 { color: #ffffff; font-size: 20px; font-weight: bold; margin-top: 8px; margin-bottom: 4px; }
-        QTextBrowser h2 { color: #ffffff; font-size: 18px; font-weight: bold; margin-top: 6px; margin-bottom: 3px; }
-        QTextBrowser h3 { color: #ffffff; font-size: 16px; font-weight: bold; margin-top: 5px; margin-bottom: 2px; }
-        QTextBrowser h4 { color: #ffffff; font-size: 15px; font-weight: bold; margin-top: 4px; margin-bottom: 2px; }
-        QTextBrowser h5 { color: #ffffff; font-size: 14px; font-weight: bold; margin-top: 3px; margin-bottom: 1px; }
-        QTextBrowser h6 { color: #ffffff; font-size: 13px; font-weight: bold; margin-top: 2px; margin-bottom: 1px; }
-        QTextBrowser p { color: #ffffff; font-size: 14px; font-weight: normal; margin: 2px 0; }
-        QTextBrowser a { color: #4da6ff; font-weight: normal; }
+        QTextBrowser h1 { color: #ffffff; font-size: 20px; margin-top: 8px; margin-bottom: 4px; }
+        QTextBrowser h2 { color: #ffffff; font-size: 18px; margin-top: 6px; margin-bottom: 3px; }
+        QTextBrowser h3 { color: #ffffff; font-size: 16px; margin-top: 5px; margin-bottom: 2px; }
+        QTextBrowser h4 { color: #ffffff; font-size: 15px; margin-top: 4px; margin-bottom: 2px; }
+        QTextBrowser h5 { color: #ffffff; font-size: 14px; margin-top: 3px; margin-bottom: 1px; }
+        QTextBrowser h6 { color: #ffffff; font-size: 13px; margin-top: 2px; margin-bottom: 1px; }
+        QTextBrowser p { color: #ffffff; font-size: 14px; margin: 2px 0; }
+        QTextBrowser a { color: #4da6ff;  }
         QTextBrowser blockquote {
             border-left: 4px solid #666666;
             padding-left: 10px;
@@ -55,7 +53,7 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
             font-size: 14px;
         }
         QTextBrowser ul, QTextBrowser ol { margin-left: 15px; }
-        QTextBrowser li { margin-bottom: 3px; font-size: 14px; font-weight: normal; }
+        QTextBrowser li { margin-bottom: 3px; font-size: 14px; }
         QTextBrowser table {
             border-collapse: collapse;
             width: 100%;
@@ -68,9 +66,9 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
             text-align: left;
             min-width: 40px;
             font-size: 14px;
-            font-weight: normal;
+            
         }
-        QTextBrowser th { background-color: #333333; font-weight: bold; }
+        QTextBrowser th { background-color: #333333; }
         /* 目录面板样式 */
         #tocPanel {
             background-color: rgba(30, 30, 30, 240);
@@ -84,13 +82,13 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
             border: none;
             padding: 8px;
             font-size: 12px;
-            font-weight: normal;
+            
             letter-spacing: -0.5px;
         }
         #tocBrowser a {
             color: #cccccc;
             text-decoration: none;
-            font-weight: normal;
+            
         }
         #tocBrowser a:hover {
             color: #ffffff;
@@ -264,7 +262,7 @@ QString MarkdownViewer::buttonStyle() const {
         QPushButton {
             color: white;
             font-size: 16px;
-            font-weight: bold;
+           
             background: #353535;
             border-radius: 15px;
             width: 30px;
@@ -535,7 +533,7 @@ void MarkdownViewer::showTableOfContents() {
 
   QString tocHtml = QStringLiteral(
       "<div style='padding: 12px;'><h3 style='margin-top: 0px; color: #ffffff; "
-      "font-size: 16px; font-weight: bold; border-bottom: 1px solid #555555; "
+      "font-size: 16px; border-bottom: 1px solid #555555; "
       "padding-bottom: 8px;'>目录</h3>");
 
   tocHtml.reserve(tocHeadings.size() * 100);
