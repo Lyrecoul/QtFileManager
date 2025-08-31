@@ -1,3 +1,4 @@
 .cache
 build
 *.o
+dictpen-libs
