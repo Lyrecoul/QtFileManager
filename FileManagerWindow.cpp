@@ -13,6 +13,7 @@
 #include <QDialog>
 #include <QDir>
 #include <QFileIconProvider>
+#include <QFileSystemWatcher>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
@@ -38,7 +39,7 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
       keyboard(nullptr), renameIndex(-1), isDeleteMode(false), deleteIndex(-1),
       deleteDialog(nullptr), deleteConfirmButton(nullptr),
       deleteCancelButton(nullptr), loadingCancelled(false), loadingMutex(),
-      loadingIndicator(nullptr), isLoading(false) {
+      loadingIndicator(nullptr), isLoading(false), dirWatcher(nullptr), dirChangeTimer(nullptr) {
 
   setWindowTitle("文件管理器");
   setAttribute(Qt::WA_DeleteOnClose, false);
@@ -220,6 +221,10 @@ FileManagerWindow::FileManagerWindow(QWidget *parent)
   } else {
     currentPath = QDir::homePath();
   }
+
+  // 初始化文件夹监测器
+  setupDirectoryWatcher();
+
   loadFileItems(currentPath);
 }
 
@@ -316,11 +321,27 @@ void FileManagerWindow::loadFileItems(const QString &path) {
   
   // 取消之前的加载操作
   loadingCancelled = true;
+
+  // 保存当前滚动位置（如果路径相同）
+  int scrollPosition = -1;
+  if (path == currentPath && fileList) {
+    scrollPosition = fileList->verticalScrollBar()->value();
+  }
   
   QString musicPath = "/userdisk/Music";
   QString rootPath = QDir(musicPath).exists() ? musicPath : QDir::homePath();
   QString normalizedPath = QDir(path).absolutePath();
   currentPath = normalizedPath.startsWith(rootPath) ? normalizedPath : rootPath;
+
+  // 更新文件夹监测器路径
+  if (dirWatcher) {
+    // 先移除旧的监测路径
+    if (!dirWatcher->directories().isEmpty()) {
+      dirWatcher->removePaths(dirWatcher->directories());
+    }
+    // 添加新的监测路径
+    dirWatcher->addPath(currentPath);
+  }
 
   // 先检查文件夹内的文件数量，只有在文件数量较多时才显示加载指示器
   QDir countDir(currentPath);
@@ -330,7 +351,7 @@ void FileManagerWindow::loadFileItems(const QString &path) {
   }
   int fileCount = countDir.entryList(countFilters).size();
 
-  // 只有当文件数量超过50个时才显示加载指示器
+  // 只有当文件数量超过 50 个时才显示加载指示器
   if (fileCount > 50) {
     isLoading = true;
     fileList->hide();
@@ -513,6 +534,11 @@ void FileManagerWindow::loadFileItems(const QString &path) {
   
   // 最后启用更新
   fileList->setUpdatesEnabled(true);
+
+  // 恢复滚动位置（如果之前保存了）
+  if (scrollPosition >= 0 && fileList->verticalScrollBar()) {
+    fileList->verticalScrollBar()->setValue(scrollPosition);
+  }
 
   // 只在显示过加载指示器的情况下才隐藏它
   if (isLoading) {
@@ -979,6 +1005,14 @@ void FileManagerWindow::onSettingsLongPress() {
   loadFileItems(currentPath);
 }
 
+void FileManagerWindow::directoryChanged(const QString &path) {
+  // 当监测的文件夹内容发生变化时，启动防抖动定时器
+  // 这样可以避免在短时间内多次刷新列表
+  if (path == currentPath && dirChangeTimer) {
+    dirChangeTimer->start();
+  }
+}
+
 void FileManagerWindow::showSettingsDialog() {
   QDialog dlg(this);
   dlg.setFixedSize(320, 170);
@@ -1204,6 +1238,32 @@ void FileManagerWindow::saveSettings() {
   
   // 保存显示隐藏文件设置
   settings.setValue("ShowHiddenFiles", showHiddenFiles);
+}
+
+void FileManagerWindow::setupDirectoryWatcher() {
+  // 创建文件夹监测器
+  if (!dirWatcher) {
+    dirWatcher = new QFileSystemWatcher(this);
+    connect(dirWatcher, &QFileSystemWatcher::directoryChanged, 
+            this, &FileManagerWindow::directoryChanged);
+  }
+
+  // 创建防抖动定时器
+  if (!dirChangeTimer) {
+    dirChangeTimer = new QTimer(this);
+    dirChangeTimer->setSingleShot(true);
+    dirChangeTimer->setInterval(500); // 500ms 防抖动
+    connect(dirChangeTimer, &QTimer::timeout, [this]() {
+      if (!currentPath.isEmpty()) {
+        loadFileItems(currentPath);
+      }
+    });
+  }
+
+  // 监测当前路径
+  if (!currentPath.isEmpty()) {
+    dirWatcher->addPath(currentPath);
+  }
 }
 
 bool FileManagerWindow::eventFilter(QObject *watched, QEvent *event) {

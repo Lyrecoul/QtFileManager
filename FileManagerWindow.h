@@ -2,6 +2,7 @@
 #define FILEMANAGERWINDOW_H
 
 #include <QFileInfo>
+#include <QFileSystemWatcher>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -35,6 +36,7 @@ private slots:
   void cancelDelete();
   void showSettingsMenu();
   void onSettingsLongPress();
+  void directoryChanged(const QString &path);
 
 private:
   void loadFileItems(const QString &path);
@@ -46,6 +48,7 @@ private:
   void loadSettings();
   void saveSettings();
   bool eventFilter(QObject *watched, QEvent *event) override;
+  void setupDirectoryWatcher();
 
   // 左侧按钮栏
   QPushButton *btnBack;
@@ -87,6 +90,10 @@ private:
   // 加载指示器
   QLabel *loadingIndicator;
   bool isLoading;
+
+  // 文件夹监测器
+  QFileSystemWatcher *dirWatcher;
+  QTimer *dirChangeTimer;
 };
 
 #endif // FILEMANAGERWINDOW_H
