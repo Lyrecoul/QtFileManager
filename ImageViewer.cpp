@@ -433,6 +433,19 @@ void ImageViewer::initThumbnailView() {
 }
 
 QPixmap ImageViewer::generateThumbnail(const QString& path) {
+    // 特殊处理 GIF 文件
+    if (path.toLower().endsWith(".gif")) {
+        QMovie movie(path);
+        if (movie.isValid()) {
+            // 获取 GIF 的第一帧作为缩略图
+            QPixmap frame = movie.currentPixmap();
+            if (!frame.isNull()) {
+                return frame.scaled(120, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+            }
+        }
+    }
+
+    // 处理普通图片
     QPixmap pixmap(path);
     if (pixmap.isNull()) return QPixmap();
 
