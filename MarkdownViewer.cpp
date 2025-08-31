@@ -3,6 +3,7 @@
 #include "qglobal.h"
 #include "qnamespace.h"
 #include <QByteArray>
+#include <QCloseEvent> // 新增：关闭事件处理
 #include <QDebug>
 #include <QDir>
 #include <QFile>
@@ -11,10 +12,9 @@
 #include <QResizeEvent>
 #include <QScrollBar>
 #include <QScroller>
+#include <QSettings> // 新增：用于保存和恢复阅读进度
 #include <QStringBuilder>
 #include <QVBoxLayout>
-#include <QSettings>  // 新增：用于保存和恢复阅读进度
-#include <QCloseEvent>  // 新增：关闭事件处理
 
 MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
     : QWidget(parent), currentPath(path), tocVisible(false) {
@@ -35,15 +35,16 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
             border: none;
             padding: 8px 42px 8px 8px;
             font-size: 14px;
+            font-family: "Noto Sans SC", "OPPOSans", "HYQiHei", "Microsoft YaHei", sans-serif;
             letter-spacing: -0.5px;
         }
-        QTextBrowser h1 { color: #ffffff; font-size: 20px; margin-top: 8px; margin-bottom: 4px; }
-        QTextBrowser h2 { color: #ffffff; font-size: 18px; margin-top: 6px; margin-bottom: 3px; }
-        QTextBrowser h3 { color: #ffffff; font-size: 16px; margin-top: 5px; margin-bottom: 2px; }
-        QTextBrowser h4 { color: #ffffff; font-size: 15px; margin-top: 4px; margin-bottom: 2px; }
-        QTextBrowser h5 { color: #ffffff; font-size: 14px; margin-top: 3px; margin-bottom: 1px; }
-        QTextBrowser h6 { color: #ffffff; font-size: 13px; margin-top: 2px; margin-bottom: 1px; }
-        QTextBrowser p { color: #ffffff; font-size: 14px; margin: 2px 0; }
+        QTextBrowser h1 { color: #ffffff; font-size: 20px; margin-top: 8px; margin-bottom: 4px; font-family: "Noto Sans SC", "OPPOSans", "HYQiHei", "Microsoft YaHei", sans-serif; }
+        QTextBrowser h2 { color: #ffffff; font-size: 18px; margin-top: 6px; margin-bottom: 3px; font-family: "Noto Sans SC", "OPPOSans", "HYQiHei", "Microsoft YaHei", sans-serif; }
+        QTextBrowser h3 { color: #ffffff; font-size: 16px; margin-top: 5px; margin-bottom: 2px; font-family: "Noto Sans SC", "OPPOSans", "HYQiHei", "Microsoft YaHei", sans-serif; }
+        QTextBrowser h4 { color: #ffffff; font-size: 15px; margin-top: 4px; margin-bottom: 2px; font-family: "Noto Sans SC", "OPPOSans", "HYQiHei", "Microsoft YaHei", sans-serif; }
+        QTextBrowser h5 { color: #ffffff; font-size: 14px; margin-top: 3px; margin-bottom: 1px; font-family: "Noto Sans SC", "OPPOSans", "HYQiHei", "Microsoft YaHei", sans-serif; }
+        QTextBrowser h6 { color: #ffffff; font-size: 13px; margin-top: 2px; margin-bottom: 1px; font-family: "Noto Sans SC", "OPPOSans", "HYQiHei", "Microsoft YaHei", sans-serif; }
+        QTextBrowser p { color: #ffffff; font-size: 14px; margin: 2px 0; font-family: "Noto Sans SC", "OPPOSans", "HYQiHei", "Microsoft YaHei", sans-serif; }
         QTextBrowser a { color: #4da6ff;  }
         QTextBrowser blockquote {
             border-left: 4px solid #666666;
@@ -51,14 +52,16 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
             margin-left: 0;
             color: #cccccc;
             font-size: 14px;
+            font-family: "Noto Sans SC", "OPPOSans", "HYQiHei", "Microsoft YaHei", sans-serif;
         }
         QTextBrowser ul, QTextBrowser ol { margin-left: 15px; }
-        QTextBrowser li { margin-bottom: 3px; font-size: 14px; }
+        QTextBrowser li { margin-bottom: 3px; font-size: 14px; font-family: "Noto Sans SC", "OPPOSans", "HYQiHei", "Microsoft YaHei", sans-serif; }
         QTextBrowser table {
             border-collapse: collapse;
             width: 100%;
             margin: 8px 0;
             font-size: 14px;
+            font-family: "Noto Sans SC", "OPPOSans", "HYQiHei", "Microsoft YaHei", sans-serif;
         }
         QTextBrowser th, QTextBrowser td {
             border: 1px solid #666666;
@@ -66,6 +69,7 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
             text-align: left;
             min-width: 40px;
             font-size: 14px;
+            font-family: "Noto Sans SC", "OPPOSans", "HYQiHei", "Microsoft YaHei", sans-serif;
             
         }
         QTextBrowser th { background-color: #333333; }
@@ -198,7 +202,7 @@ MarkdownViewer::MarkdownViewer(const QString &path, QWidget *parent)
   tocBrowser->horizontalScrollBar()->setStyleSheet(
       "QScrollBar { height: 0px; }");
 
-  // 启用触摸滑动支持（保持不变）
+  // 启用触摸滑动支持
   QScroller *scroller = QScroller::scroller(textBrowser);
   QScroller::grabGesture(textBrowser, QScroller::TouchGesture);
 
@@ -304,23 +308,68 @@ bool MarkdownViewer::loadMarkdownFile() {
 }
 
 /* 工具函数 */
-const int MAX_SEARCH_LEVELS = 10;
+constexpr int MAX_SEARCH_LEVELS = 10;
+
+namespace {
+// 预编译正则表达式以提高性能
+const QRegularExpression SPECIAL_CHARS_REGEX("[^a-z0-9_-]");
+const QRegularExpression MULTI_UNDERSCORE_REGEX("_+");
+const QRegularExpression
+    HEADING_REGEX("<h([1-6])(\\s+[^>]*)?>([^<]+)</h\\1>",
+                  QRegularExpression::CaseInsensitiveOption);
+} // namespace
+
+// 确保 ID 唯一的辅助函数
+QString ensureUniqueId(const QString &baseId, QSet<QString> &usedIds) {
+  QString uniqueId = baseId;
+  int counter = 1;
+
+  while (usedIds.contains(uniqueId)) {
+    uniqueId = baseId + "_" + QString::number(counter);
+    counter++;
+  }
+
+  usedIds.insert(uniqueId);
+  return uniqueId;
+}
 
 // 生成标题锚点 ID（确保唯一性和兼容性）
-QString generateAnchorId(const QString &title) {
-  QString anchorId = title.trimmed().toLower(); // 统一转为小写，避免大小写问题
-  anchorId.replace(" ", "_");
-  // 移除特殊字符，只保留安全字符
-  anchorId.remove(QRegularExpression("[^a-z0-9_-]"));
+QString generateAnchorId(const QString &title, QSet<QString> &usedIds) {
+  if (title.isEmpty()) {
+    return ensureUniqueId("heading", usedIds);
+  }
+
+  QString anchorId = title.trimmed().toLower();
+  anchorId.replace(' ', '_');
+
+  // 一次性移除所有特殊字符（保留字母、数字、下划线和连字符）
+  static QRegularExpression specialCharsRegex("[^a-z0-9_-]");
+  anchorId.remove(specialCharsRegex);
+
+  // 替换多个连续下划线为单个
+  static QRegularExpression multiUnderscoreRegex("_{2,}");
+  anchorId.replace(multiUnderscoreRegex, "_");
+
+  // 移除首尾下划线
+  if (anchorId.startsWith('_')) {
+    anchorId.remove(0, 1);
+  }
+  if (anchorId.endsWith('_')) {
+    anchorId.chop(1);
+  }
+
   // 确保不以数字开头
-  if (!anchorId.isEmpty() && anchorId[0].isDigit()) {
+  if (!anchorId.isEmpty() && anchorId.at(0).isDigit()) {
     anchorId.prepend("anchor_");
   }
-  // 空标题处理
+
+  // 如果为空，使用默认值
   if (anchorId.isEmpty()) {
     anchorId = "heading";
   }
-  return anchorId;
+
+  // 确保 ID 唯一
+  return ensureUniqueId(anchorId, usedIds);
 }
 
 // 解码 URL 编码的路径
@@ -331,8 +380,7 @@ QString decodePath(const QString &encodedPath) {
 // 构建清理后的绝对路径
 QString buildCleanAbsolutePath(const QDir &baseDir,
                                const QString &relativePath) {
-  QString absolutePath = baseDir.absoluteFilePath(relativePath);
-  return baseDir.cleanPath(absolutePath);
+  return baseDir.cleanPath(baseDir.absoluteFilePath(relativePath));
 }
 
 // 替换图片标签中的路径
@@ -343,36 +391,71 @@ void replaceImageTag(QString &htmlContent, const QString &originalTag,
   htmlContent.replace(originalTag, newImgTag);
 }
 
-// 为标题添加锚点（优化正则匹配，支持带属性的标题标签）
+// 添加标题锚点
 void addHeadingAnchors(QString &htmlContent) {
-  // 匹配带属性的标题标签（如<h1 class="xxx">）
-  static const QRegularExpression headingRegex(
-      "<h([1-6])(\\s+[^>]*)?>([^<]+)</h\\1>",
-      QRegularExpression::CaseInsensitiveOption);
+  QRegularExpression headingRegex(
+      R"(<h(\d)([^>]*)>(.*?)</h\1>)",
+      QRegularExpression::CaseInsensitiveOption |
+          QRegularExpression::InvertedGreedinessOption);
 
-  QRegularExpressionMatchIterator i = headingRegex.globalMatch(htmlContent);
-  QList<QPair<int, int>> replacePositions;
-  QList<QString> replacements;
+  QRegularExpressionMatchIterator matches =
+      headingRegex.globalMatch(htmlContent);
 
-  while (i.hasNext()) {
-    QRegularExpressionMatch match = i.next();
+  struct Replacement {
+    int start;
+    int length;
+    QString content;
+  };
+  QVector<Replacement> replacements;
+  replacements.reserve(50);
+
+  // 用于跟踪已使用的 ID，确保唯一性
+  QSet<QString> usedIds;
+
+  while (matches.hasNext()) {
+    QRegularExpressionMatch match = matches.next();
     int level = match.captured(1).toInt();
-    QString title = match.captured(3); // 捕获标题内容
-    QString anchorId = generateAnchorId(title);
+    QString attributes = match.captured(2).trimmed();
+    QString titleContent = match.captured(3);
 
-    // 生成带锚点的标题标签
-    QString replacement =
-        QString("<h%1 id=\"%2\">%3</h%1>").arg(level).arg(anchorId).arg(title);
+    // 生成唯一锚点ID
+    QString anchorId = generateAnchorId(titleContent, usedIds);
 
-    replacePositions.prepend(
-        qMakePair(match.capturedStart(), match.capturedLength()));
-    replacements.prepend(replacement);
+    // 检查是否已有 id 属性
+    QRegularExpression idRegex("id\\s*=\\s*['\"]([^'\"]*)['\"]",
+                               QRegularExpression::CaseInsensitiveOption);
+    QRegularExpressionMatch idMatch = idRegex.match(attributes);
+
+    QString newAttributes;
+    if (idMatch.hasMatch()) {
+      // 如果已有 id，保留原 id 并添加我们的锚点 id 作为 data 属性
+      QString originalId = idMatch.captured(1);
+      newAttributes = attributes;
+      newAttributes.replace(idRegex, "id=\"" + originalId +
+                                         "\" data-anchor-id=\"" + anchorId +
+                                         "\"");
+    } else {
+      // 如果没有 id，添加我们的锚点 id
+      if (attributes.isEmpty()) {
+        newAttributes = "id=\"" + anchorId + "\"";
+      } else {
+        newAttributes = attributes + " id=\"" + anchorId + "\"";
+      }
+    }
+
+    // 直接拼接字符串
+    QString replacement = "<h" + QString::number(level) + " " + newAttributes +
+                          ">" + titleContent + "</h" + QString::number(level) +
+                          ">";
+
+    replacements.append(
+        {match.capturedStart(), match.capturedLength(), replacement});
   }
 
-  // 执行替换（从后往前避免索引偏移）
-  for (int j = 0; j < replacePositions.size(); ++j) {
-    htmlContent.replace(replacePositions[j].first, replacePositions[j].second,
-                        replacements[j]);
+  // 从后向前替换
+  for (int i = replacements.size() - 1; i >= 0; --i) {
+    const auto &repl = replacements[i];
+    htmlContent.replace(repl.start, repl.length, repl.content);
   }
 }
 
@@ -493,7 +576,7 @@ void MarkdownViewer::convertMarkdownToHtml(const QByteArray &markdown) {
   htmlContent.replace(imgTagRegex, "<img\\1 height=\"200\" >");
 
   // 为标题添加锚点 ID
-  addHeadingAnchors(htmlContent);
+  // addHeadingAnchors(htmlContent);
 
   textBrowser->setHtml(htmlContent);
 }
@@ -513,15 +596,20 @@ void MarkdownViewer::extractTableOfContents(const QByteArray &markdown) {
                                      QRegularExpression::MultilineOption);
   tocHeadings.reserve(20);
 
+  // 创建已使用 ID 的集合，确保 ID 唯一性
+  QSet<QString> usedIds;
+
   QRegularExpressionMatchIterator i = re.globalMatch(markdownText);
   while (i.hasNext()) {
     QRegularExpressionMatch match = i.next();
     QString level = match.captured(1);
     QString title = match.captured(2).trimmed();
-    QString anchorId = generateAnchorId(title); // 与标题锚点使用相同生成逻辑
+
+    // 使用新的 generateAnchorId 函数，确保ID唯一性
+    QString anchorId = generateAnchorId(title, usedIds);
 
     // 存储格式：级别|标题|锚点ID
-    tocHeadings.append(QString::number(level.length()) % "|" % title % "|" %
+    tocHeadings.append(QString::number(level.length()) + "|" + title + "|" +
                        anchorId);
   }
 }
@@ -584,9 +672,7 @@ void MarkdownViewer::startAutoScroll(int speed) {
   autoScrollTimer.start(50); // 每50毫秒触发一次滚动
 }
 
-void MarkdownViewer::stopAutoScroll() {
-  autoScrollTimer.stop();
-}
+void MarkdownViewer::stopAutoScroll() { autoScrollTimer.stop(); }
 
 void MarkdownViewer::performAutoScroll() {
   QScrollBar *scrollBar = textBrowser->verticalScrollBar();
@@ -615,7 +701,8 @@ QString MarkdownViewer::getProgressFilePath() {
 // 保存阅读进度
 void MarkdownViewer::saveReadingProgress() {
   QSettings settings(getProgressFilePath(), QSettings::IniFormat);
-  settings.setValue("scrollPosition", textBrowser->verticalScrollBar()->value());
+  settings.setValue("scrollPosition",
+                    textBrowser->verticalScrollBar()->value());
   settings.sync();
 }
 
@@ -624,7 +711,7 @@ void MarkdownViewer::restoreReadingProgress() {
   QSettings settings(getProgressFilePath(), QSettings::IniFormat);
   int scrollPosition = settings.value("scrollPosition", 0).toInt();
 
-  // 等待UI完全加载后再设置滚动位置
+  // 等待 UI 完全加载后再设置滚动位置
   QTimer::singleShot(100, [this, scrollPosition]() {
     textBrowser->verticalScrollBar()->setValue(scrollPosition);
   });
