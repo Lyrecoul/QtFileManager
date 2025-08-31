@@ -35,7 +35,7 @@ QMAKE_CXXFLAGS += -std=gnu++11
 
 INCLUDEPATH += $$PWD/include
 
-LIBS += -L/home/lyrecoul/PenDevelopment/lib \
+LIBS += -L$$PWD/dictpen-libs \
         -ldrm -lpcre -lgbm -lwayland-client -lwayland-server -lffi \
         -L$$PWD/libs -ldobby -ldl
 
