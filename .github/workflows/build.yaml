@@ -1,0 +1,43 @@
+name: Build and Upload artifact
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v4
+
+      - name: Clone Qt repository
+        run: git clone https://github.com/Lyrecoul/qt-5.15.2-for-aarch64-dictpen-linux.git
+
+      - name: Clone GCC repository
+        run: git clone https://github.com/Lyrecoul/aarch64-dictpen-linux-gnu-gcc-toolchain.git
+
+      - name: Clone Dictpen libs repository
+        run: git clone https://github.com/Lyrecoul/dictpen-libs.git
+
+      - name: Set up environment
+        run: |
+          echo "$PWD/qt-5.15.2-for-aarch64-dictpen-linux/bin" >> $GITHUB_PATH
+          echo "$PWD/aarch64-dictpen-linux-gnu-gcc-toolchain/bin" >> $GITHUB_PATH
+
+      - name: Build with qmake
+        run: |
+          ./qt-5.15.2-for-aarch64-dictpen-linux/bin/qmake FileManager.pro
+          make -j$(nproc)
+
+      - name: Strip debug symbols
+        run: |
+          aarch64-dictpen-linux-gnu-strip libFileManager.so
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libFileManager.so
+          path: libFileManager.so
