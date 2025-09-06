@@ -37,7 +37,8 @@ INCLUDEPATH += $$PWD/include
 
 LIBS += -L$$PWD/dictpen-libs \
         -ldrm -lpcre -lgbm -lwayland-client -lwayland-server -lffi \
-        -L$$PWD/libs -ldobby -ldl
+        -L$$PWD/libs -ldobby -ldl \
+        -lwebp -lwebpdemux
 
 RESOURCES += resources.qrc
 
